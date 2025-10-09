@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.expense.ui.AddExpenseController"
+      spacing="8">
+
+    <padding>
+        <Insets top="12" right="12" bottom="12" left="12"/>
+    </padding>
+    <Label text="Add Expense" style="-fx-font-size:16px; -fx-font-weight:bold;"/>
+    <GridPane hgap="8" vgap="8">
+        <Label text="Description:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <TextField fx:id="descField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+        <Label text="Amount:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+        <TextField fx:id="amountField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+        <Label text="Category:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+        <TextField fx:id="categoryField" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+        <Button text="Suggest" onAction="#onSuggest" GridPane.rowIndex="2" GridPane.columnIndex="2"/>
+    </GridPane>
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Cancel" onAction="#onCancel"/>
+        <Button text="Save" onAction="#onSave"/>
+    </HBox>
+</VBox>

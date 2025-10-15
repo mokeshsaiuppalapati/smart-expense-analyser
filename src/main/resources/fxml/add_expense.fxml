@@ -5,23 +5,32 @@
 
 <VBox xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.expense.ui.AddExpenseController"
-      spacing="8">
+      spacing="12" styleClass="root">
 
     <padding>
-        <Insets top="12" right="12" bottom="12" left="12"/>
+        <Insets top="20" right="20" bottom="20" left="20"/>
     </padding>
-    <Label text="Add Expense" style="-fx-font-size:16px; -fx-font-weight:bold;"/>
-    <GridPane hgap="8" vgap="8">
-        <Label text="Description:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-        <TextField fx:id="descField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
-        <Label text="Amount:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-        <TextField fx:id="amountField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-        <Label text="Category:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-        <TextField fx:id="categoryField" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
-        <Button text="Suggest" onAction="#onSuggest" GridPane.rowIndex="2" GridPane.columnIndex="2"/>
+
+    <Label text="Add New Expense" styleClass="h1"/>
+
+    <GridPane hgap="10" vgap="12">
+        <Label text="Date:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <DatePicker fx:id="datePicker" prefWidth="200.0" GridPane.rowIndex="0" GridPane.columnIndex="1" GridPane.columnSpan="2"/>
+
+        <Label text="Description:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+        <TextField fx:id="descField" prefWidth="200.0" promptText="e.g., Coffee with friend" GridPane.rowIndex="1" GridPane.columnIndex="1" GridPane.columnSpan="2"/>
+
+        <Label text="Amount (₹):" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+        <TextField fx:id="amountField" promptText="e.g., 150.0" GridPane.rowIndex="2" GridPane.columnIndex="1" GridPane.columnSpan="2"/>
+
+        <Label text="Category:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="categoryCombo" editable="true" prefWidth="200.0" promptText="Select or type category" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+        <Button text="Suggest" onAction="#onSuggest" GridPane.rowIndex="3" GridPane.columnIndex="2"/>
     </GridPane>
-    <HBox spacing="8" alignment="CENTER_RIGHT">
-        <Button text="Cancel" onAction="#onCancel"/>
-        <Button text="Save" onAction="#onSave"/>
+
+    <HBox spacing="10" alignment="CENTER_RIGHT" style="-fx-padding: 10 0 0 0;">
+        <Button text="Cancel" onAction="#onCancel" cancelButton="true"/>
+        <Button text="Save" onAction="#onSave" defaultButton="true" styleClass="button"/>
     </HBox>
+
 </VBox>

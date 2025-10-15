@@ -1,16 +1,19 @@
+// File: src/main/java/com/expense/model/Transaction.java
+
 package com.expense.model;
 
 import javafx.beans.property.*;
+import java.time.LocalDate;
 
 public class Transaction {
     private final IntegerProperty id = new SimpleIntegerProperty();
-    private final StringProperty date = new SimpleStringProperty();
+    // CHANGED: Date is now a proper LocalDate object, perfect for JavaFX.
+    private final ObjectProperty<LocalDate> date = new SimpleObjectProperty<>();
     private final DoubleProperty amount = new SimpleDoubleProperty();
     private final StringProperty description = new SimpleStringProperty();
     private final StringProperty category = new SimpleStringProperty();
 
-    // Full constructor with id
-    public Transaction(int id, String date, double amount, String description, String category) {
+    public Transaction(int id, LocalDate date, double amount, String description, String category) {
         this.id.set(id);
         this.date.set(date);
         this.amount.set(amount);
@@ -18,19 +21,19 @@ public class Transaction {
         this.category.set(category);
     }
 
-    // Constructor without id (for new rows not yet in DB)
-    public Transaction(String date, double amount, String description, String category) {
+    public Transaction(LocalDate date, double amount, String description, String category) {
         this(0, date, amount, description, category);
     }
 
-    // Getters & Setters
+    // --- Property Getters and Setters ---
+
     public int getId() { return id.get(); }
     public void setId(int v) { id.set(v); }
     public IntegerProperty idProperty() { return id; }
 
-    public String getDate() { return date.get(); }
-    public void setDate(String v) { date.set(v); }
-    public StringProperty dateProperty() { return date; }
+    public LocalDate getDate() { return date.get(); }
+    public void setDate(LocalDate v) { date.set(v); }
+    public ObjectProperty<LocalDate> dateProperty() { return date; }
 
     public double getAmount() { return amount.get(); }
     public void setAmount(double v) { amount.set(v); }

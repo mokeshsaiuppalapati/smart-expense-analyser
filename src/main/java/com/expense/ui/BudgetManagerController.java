@@ -1,3 +1,5 @@
+// File: src/main/java/com/expense/ui/BudgetManagerController.java
+
 package com.expense.ui;
 
 import com.expense.model.Budget;
@@ -13,7 +15,10 @@ import javafx.scene.paint.Color;
 import javafx.util.Callback;
 import javafx.util.converter.DoubleStringConverter;
 
+import java.time.YearMonth;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -34,6 +39,7 @@ public class BudgetManagerController {
 
     private ExpenseService service;
     private final ObservableList<Budget> budgetList = FXCollections.observableArrayList();
+    private final Map<String, Double> spendingCache = new HashMap<>();
 
     public void initData(ExpenseService service) {
         this.service = service;
@@ -47,35 +53,43 @@ public class BudgetManagerController {
 
     private void setupTableColumns() {
         categoryCol.setCellValueFactory(cell -> new javafx.beans.property.SimpleStringProperty(cell.getValue().getCategory()));
+        limitCol.setCellValueFactory(cell -> new javafx.beans.property.SimpleDoubleProperty(cell.getValue().getMonthlyLimit()).asObject());
 
         // Make the Limit column editable
         limitCol.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         limitCol.setOnEditCommit(event -> {
             Budget budget = event.getRowValue();
             budget.setMonthlyLimit(event.getNewValue());
-            // If the budget is already saved in the DB, update it immediately.
             if (budget.getId() != 0) {
-                service.updateBudget(budget);
-                loadBudgets(); // Reload to refresh summary and calculations
+                // FIXED: Added try-catch for the service call
+                try {
+                    service.updateBudget(budget);
+                    loadBudgets(); // Reload to refresh everything
+                } catch (Exception e) {
+                    showAlert(Alert.AlertType.ERROR, "Update Failed", "Could not update budget: " + e.getMessage());
+                    loadBudgets(); // Reload to revert the visual change in the table
+                }
             }
         });
-        limitCol.setCellValueFactory(cell -> new javafx.beans.property.SimpleDoubleProperty(cell.getValue().getMonthlyLimit()).asObject());
 
+        // These now correctly read from the fast in-memory cache
         spentCol.setCellValueFactory(cell -> {
-            double spent = service.getSpentAmountForCategoryThisMonth(cell.getValue().getCategory());
+            double spent = spendingCache.getOrDefault(cell.getValue().getCategory(), 0.0);
             return new javafx.beans.property.SimpleDoubleProperty(spent).asObject();
         });
 
         remainingCol.setCellValueFactory(cell -> {
-            double spent = service.getSpentAmountForCategoryThisMonth(cell.getValue().getCategory());
+            double spent = spendingCache.getOrDefault(cell.getValue().getCategory(), 0.0);
             double remaining = cell.getValue().getMonthlyLimit() - spent;
             return new javafx.beans.property.SimpleDoubleProperty(remaining).asObject();
         });
 
+        // --- Progress Bar Cell ---
         progressCol.setCellFactory(param -> new TableCell<>() {
             private final ProgressBar progressBar = new ProgressBar();
             private final Label percentLabel = new Label();
             private final HBox container = new HBox(5, progressBar, percentLabel);
+            { container.setAlignment(Pos.CENTER_LEFT); }
 
             @Override
             protected void updateItem(Void item, boolean empty) {
@@ -84,7 +98,7 @@ public class BudgetManagerController {
                     setGraphic(null);
                 } else {
                     Budget budget = getTableView().getItems().get(getIndex());
-                    double spent = service.getSpentAmountForCategoryThisMonth(budget.getCategory());
+                    double spent = spendingCache.getOrDefault(budget.getCategory(), 0.0);
                     double limit = budget.getMonthlyLimit();
                     double progress = (limit > 0) ? spent / limit : 0.0;
 
@@ -92,18 +106,22 @@ public class BudgetManagerController {
                     percentLabel.setText(String.format("%.0f%%", progress * 100));
 
                     if (progress > 1.0) {
-                        progressBar.setStyle("-fx-accent: red;");
+                        progressBar.setStyle("-fx-accent: #CF6679;");
+                    } else if (progress > 0.85) {
+                        progressBar.setStyle("-fx-accent: #FBB13C;");
                     } else {
-                        progressBar.setStyle("-fx-accent: #007bff;");
+                        progressBar.setStyle("-fx-accent: #03DAC6;");
                     }
                     setGraphic(container);
                 }
             }
         });
 
+        // --- Actions (Delete Button) Cell ---
         Callback<TableColumn<Budget, Void>, TableCell<Budget, Void>> cellFactory = param -> new TableCell<>() {
             private final Button btn = new Button("Delete");
             {
+                btn.getStyleClass().add("delete-button"); // For CSS styling
                 btn.setOnAction(event -> {
                     Budget budget = getTableView().getItems().get(getIndex());
                     onDeleteBudget(budget);
@@ -112,93 +130,86 @@ public class BudgetManagerController {
             @Override
             public void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    setGraphic(btn);
-                    setAlignment(Pos.CENTER);
-                }
+                setGraphic(empty ? null : btn);
+                setAlignment(Pos.CENTER);
             }
         };
         actionsCol.setCellFactory(cellFactory);
     }
 
     private void loadBudgets() {
-        budgetList.setAll(service.getAllBudgets());
-        budgetTable.setItems(budgetList);
-        updateSummary();
+        // FIXED: Added try-catch for all database operations
+        try {
+            spendingCache.clear();
+            List<Budget> budgets = service.getAllBudgets();
+            Map<String, Double> currentMonthSpending = service.getCategoryTotalsForMonth(YearMonth.now());
+            spendingCache.putAll(currentMonthSpending);
+
+            budgetList.setAll(budgets);
+            budgetTable.setItems(budgetList);
+            updateSummary();
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Database Error", "Could not load budget data: " + e.getMessage());
+        }
     }
 
     private void updateSummary() {
-        double totalBudget = 0;
-        double totalSpent = 0;
-
-        for (Budget budget : budgetList) {
-            totalBudget += budget.getMonthlyLimit();
-            totalSpent += service.getSpentAmountForCategoryThisMonth(budget.getCategory());
-        }
-
+        double totalBudget = budgetList.stream().mapToDouble(Budget::getMonthlyLimit).sum();
+        double totalSpent = spendingCache.values().stream().mapToDouble(Double::doubleValue).sum();
         double totalRemaining = totalBudget - totalSpent;
 
         lblTotalBudget.setText(String.format("₹%.2f", totalBudget));
         lblTotalSpent.setText(String.format("₹%.2f", totalSpent));
         lblTotalRemaining.setText(String.format("₹%.2f", totalRemaining));
 
-        if (totalRemaining < 0) {
-            lblTotalRemaining.setTextFill(Color.RED);
-        } else {
-            lblTotalRemaining.setTextFill(Color.GREEN);
-        }
+        lblTotalRemaining.setTextFill(totalRemaining < 0 ? Color.RED : Color.GREEN);
     }
 
     @FXML
     public void onSuggestBudgets() {
-        List<Budget> suggestions = service.getBudgetSuggestions();
-        // Get categories that already have a budget
-        List<String> existingCategories = budgetList.stream().map(Budget::getCategory).collect(Collectors.toList());
-        // Filter out suggestions for categories that already exist
-        suggestions.removeIf(suggestion -> existingCategories.contains(suggestion.getCategory()));
+        // FIXED: Added try-catch for the service call
+        try {
+            List<Budget> suggestions = service.getBudgetSuggestions();
+            List<String> existingCategories = budgetList.stream().map(Budget::getCategory).collect(Collectors.toList());
+            suggestions.removeIf(suggestion -> existingCategories.contains(suggestion.getCategory()));
 
-        if (suggestions.isEmpty()) {
-            showAlert(Alert.AlertType.INFORMATION, "No New Suggestions", "Budget suggestions are already up to date with your spending categories.");
-        } else {
-            budgetList.addAll(suggestions);
+            if (suggestions.isEmpty()) {
+                showAlert(Alert.AlertType.INFORMATION, "No New Suggestions", "All your spending categories already have a budget.");
+            } else {
+                budgetList.addAll(suggestions);
+            }
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Error", "Could not generate budget suggestions: " + e.getMessage());
         }
     }
 
     @FXML
     public void onAddBudget() {
-        Budget selected = budgetTable.getSelectionModel().getSelectedItem();
+        String cat = categoryField.getText().trim();
+        String limitText = limitField.getText().trim();
 
-        if (selected != null) {
-            // If a row is selected, save that one (it might be a new suggestion)
-            service.addBudget(selected);
-        } else {
-            // Otherwise, use the text fields as before
-            String cat = categoryField.getText().trim();
-            String limitText = limitField.getText().trim();
-            if (cat.isEmpty() || limitText.isEmpty()) {
-                showAlert(Alert.AlertType.ERROR, "Error", "Category and limit are required.");
-                return;
-            }
-            double limit;
-            try {
-                limit = Double.parseDouble(limitText);
-                if (limit <= 0) throw new NumberFormatException();
-            } catch (NumberFormatException e) {
-                showAlert(Alert.AlertType.ERROR, "Error", "Please enter a valid, positive limit.");
-                return;
-            }
-            service.addBudget(new Budget(cat, limit));
+        if (cat.isEmpty() || limitText.isEmpty()) {
+            showAlert(Alert.AlertType.ERROR, "Validation Error", "Category and limit are required.");
+            return;
         }
 
-        loadBudgets();
-        clearForm();
+        // FIXED: Added try-catch for the service call
+        try {
+            double limit = Double.parseDouble(limitText);
+            if (limit <= 0) throw new NumberFormatException();
+
+            service.addBudget(new Budget(cat, limit));
+            loadBudgets();
+            clearForm();
+        } catch (NumberFormatException e) {
+            showAlert(Alert.AlertType.ERROR, "Validation Error", "Please enter a valid, positive number for the limit.");
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Database Error", "Could not save the budget: " + e.getMessage());
+        }
     }
 
     private void onDeleteBudget(Budget budgetToDelete) {
         if (budgetToDelete.getId() == 0) {
-            // If it's a suggestion (not in DB), just remove it from the list
             budgetList.remove(budgetToDelete);
             return;
         }
@@ -209,9 +220,19 @@ public class BudgetManagerController {
         Optional<ButtonType> result = confirm.showAndWait();
 
         if (result.isPresent() && result.get() == ButtonType.OK) {
-            service.deleteBudget(budgetToDelete.getId());
-            loadBudgets();
+            // FIXED: Added try-catch for the service call
+            try {
+                service.deleteBudget(budgetToDelete.getId());
+                loadBudgets();
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Database Error", "Could not delete budget: " + e.getMessage());
+            }
         }
+    }
+
+    private void clearForm() {
+        categoryField.clear();
+        limitField.clear();
     }
 
     private void showAlert(Alert.AlertType type, String title, String msg) {
@@ -220,10 +241,5 @@ public class BudgetManagerController {
         a.setHeaderText(null);
         a.setContentText(msg);
         a.showAndWait();
-    }
-
-    private void clearForm() {
-        categoryField.clear();
-        limitField.clear();
     }
 }

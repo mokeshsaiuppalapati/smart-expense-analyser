@@ -51,10 +51,9 @@
                 </children>
             </VBox>
 
-            <VBox styleClass="dashboard-widget" GridPane.columnIndex="1" GridPane.rowIndex="1">
+            <VBox fx:id="personaContainer" styleClass="dashboard-widget" GridPane.columnIndex="1" GridPane.rowIndex="1">
                 <children>
-                    <Label styleClass="widget-title" text="📊 Budgets Nearing Limit" />
-                    <VBox fx:id="budgetsContainer" spacing="10.0" VBox.vgrow="ALWAYS" />
+                    <Label styleClass="widget-title" text="🎭 Your Financial Persona" />
                 </children>
             </VBox>
         </children>

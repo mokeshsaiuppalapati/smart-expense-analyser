@@ -19,6 +19,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.chart.BarChart;
+import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
@@ -36,6 +37,7 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -52,6 +54,7 @@ public class MainController {
     @FXML private TableColumn<Transaction, String> colCat;
     @FXML private PieChart pieChart;
     @FXML private BarChart<String, Number> barChart;
+    @FXML private CategoryAxis xAxis;
     @FXML private NumberAxis yAxis;
     @FXML private ComboBox<Integer> barYearCombo;
     @FXML private ComboBox<Integer> pieYearCombo;
@@ -74,6 +77,12 @@ public class MainController {
         this.categorizer = new WekaPredictor();
         this.expensePredictor = new ExpensePredictor();
 
+        // Configure the x-axis with all month names from the start
+        List<String> monthNames = Arrays.stream(Month.values())
+                .map(m -> m.getDisplayName(TextStyle.SHORT, Locale.ENGLISH))
+                .collect(Collectors.toList());
+        xAxis.setCategories(FXCollections.observableArrayList(monthNames));
+
         try {
             service.init();
             int itemsProcessed = service.processRecurringTransactions();
@@ -94,9 +103,65 @@ public class MainController {
         refreshData();
     }
 
+    // ==========================================================================
+    // --- THIS IS THE DEFINITIVE FIX FOR THE BAR CHART ---
+    // ==========================================================================
+    private void onRefreshBar() {
+        Integer selectedYear = barYearCombo.getValue();
+        if (selectedYear == null) {
+            barChart.getData().clear();
+            return;
+        }
+
+        try {
+            int previousYear = selectedYear - 1;
+
+            // 1. Fetch data for both years
+            Map<String, Double> currentYearTotals = service.getMonthlyTotalsForYear(selectedYear);
+            Map<String, Double> previousYearTotals = service.getMonthlyTotalsForYear(previousYear);
+
+            // 2. Create a data series for each year
+            XYChart.Series<String, Number> currentYearSeries = new XYChart.Series<>();
+            currentYearSeries.setName(String.valueOf(selectedYear));
+
+            XYChart.Series<String, Number> previousYearSeries = new XYChart.Series<>();
+            previousYearSeries.setName(String.valueOf(previousYear));
+
+            // 3. Find the overall maximum amount for scaling the Y-axis
+            double maxAmount = 0.0;
+            maxAmount = Math.max(currentYearTotals.values().stream().mapToDouble(d -> d).max().orElse(0.0), maxAmount);
+            maxAmount = Math.max(previousYearTotals.values().stream().mapToDouble(d -> d).max().orElse(0.0), maxAmount);
+            yAxis.setAutoRanging(false);
+            yAxis.setUpperBound(maxAmount == 0 ? 100 : maxAmount * 1.1);
+
+            // 4. Populate both series with data for all 12 months
+            for (Month month : Month.values()) {
+                String shortMonthName = month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+
+                // Current Year Data
+                String currentYearKey = String.format("%d-%02d", selectedYear, month.getValue());
+                currentYearSeries.getData().add(new XYChart.Data<>(shortMonthName, currentYearTotals.getOrDefault(currentYearKey, 0.0)));
+
+                // Previous Year Data
+                String previousYearKey = String.format("%d-%02d", previousYear, month.getValue());
+                previousYearSeries.getData().add(new XYChart.Data<>(shortMonthName, previousYearTotals.getOrDefault(previousYearKey, 0.0)));
+            }
+
+            // 5. Display the data
+            barChart.setAnimated(false);
+            barChart.getData().setAll(currentYearSeries, previousYearSeries);
+            barChart.setTitle("Monthly Comparison: " + previousYear + " vs " + selectedYear);
+
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Bar Chart: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // --- All other methods remain correct ---
+
     private void setupTable() {
         table.setEditable(true);
-
         colDate.setCellValueFactory(cell -> cell.getValue().dateProperty());
         colDate.setCellFactory(TextFieldTableCell.forTableColumn(new LocalDateStringConverter()));
         colDate.setOnEditCommit(event -> {
@@ -104,7 +169,6 @@ public class MainController {
             transaction.setDate(event.getNewValue());
             updateTransactionAndRefresh(transaction);
         });
-
         colAmount.setCellValueFactory(cell -> cell.getValue().amountProperty().asObject());
         colAmount.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         colAmount.setOnEditCommit(event -> {
@@ -112,7 +176,6 @@ public class MainController {
             transaction.setAmount(event.getNewValue());
             updateTransactionAndRefresh(transaction);
         });
-
         colDesc.setCellValueFactory(cell -> cell.getValue().descriptionProperty());
         colDesc.setCellFactory(TextFieldTableCell.forTableColumn());
         colDesc.setOnEditCommit(event -> {
@@ -120,51 +183,36 @@ public class MainController {
             transaction.setDescription(event.getNewValue());
             updateTransactionAndRefresh(transaction);
         });
-
         colCat.setCellValueFactory(cell -> cell.getValue().categoryProperty());
         colCat.setCellFactory(TextFieldTableCell.forTableColumn());
-
-        // --- UPGRADED METHOD FOR AUTOMATIC RETRAINING ---
         colCat.setOnEditCommit(event -> {
             Transaction transaction = event.getRowValue();
             String oldCategory = transaction.getCategory();
             String newCategory = event.getNewValue();
-
             if (newCategory != null && !newCategory.equalsIgnoreCase(oldCategory)) {
-                // First, update the transaction in the database
                 transaction.setCategory(newCategory);
                 updateTransactionAndRefresh(transaction);
-
-                // Then, log this as a correction for the AI
                 service.logCorrection(transaction.getDescription(), newCategory);
-
-                // Finally, automatically trigger the retraining process in the background
                 onRetrainModel();
-
                 System.out.println("Correction logged and auto-retraining started for: '" + transaction.getDescription() + "' -> '" + newCategory + "'");
             }
         });
-
         table.setItems(transactionList);
     }
-
     public void refreshData() {
         try {
             transactionList.setAll(service.getAll());
             populateSelectors();
-
             Platform.runLater(() -> {
                 dashboardController.refreshData();
                 goalsController.refreshGoals();
             });
-
             onRefreshPie();
             onRefreshBar();
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Error", "Could not load data: " + e.getMessage());
         }
     }
-
     private void updateTransactionAndRefresh(Transaction t) {
         try {
             service.updateTransaction(t);
@@ -174,7 +222,6 @@ public class MainController {
             refreshData();
         }
     }
-
     private void populateSelectors() {
         Integer selectedBarYear = barYearCombo.getValue();
         Integer selectedPieYear = pieYearCombo.getValue();
@@ -199,9 +246,7 @@ public class MainController {
             pieMonthCombo.setValue(LocalDate.now().getMonth());
         }
     }
-
-    @FXML
-    private void onAddExpense() {
+    @FXML private void onAddExpense() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/add_expense.fxml"));
             Stage stage = new Stage();
@@ -217,9 +262,7 @@ public class MainController {
             e.printStackTrace();
         }
     }
-
-    @FXML
-    private void onOpenBudgets() {
+    @FXML private void onOpenBudgets() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/budget_manager.fxml"));
             Stage stage = new Stage();
@@ -235,9 +278,7 @@ public class MainController {
             e.printStackTrace();
         }
     }
-
-    @FXML
-    private void onOpenRecurring() {
+    @FXML private void onOpenRecurring() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/recurring_manager.fxml"));
             Stage stage = new Stage();
@@ -254,9 +295,7 @@ public class MainController {
             e.printStackTrace();
         }
     }
-
-    @FXML
-    private void onDeleteTransaction() {
+    @FXML private void onDeleteTransaction() {
         Transaction selected = table.getSelectionModel().getSelectedItem();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a transaction to delete.");
@@ -275,10 +314,8 @@ public class MainController {
             }
         }
     }
-
     @FXML private void onPieChartFilterChanged() { onRefreshPie(); }
     @FXML private void onBarYearSelected() { onRefreshBar(); }
-
     private void onRefreshPie() {
         Integer year = pieYearCombo.getValue();
         Month month = pieMonthCombo.getValue();
@@ -297,52 +334,7 @@ public class MainController {
             showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Pie Chart: " + e.getMessage());
         }
     }
-
-    private void onRefreshBar() {
-        Integer selectedYear = barYearCombo.getValue();
-        if (selectedYear == null) {
-            barChart.getData().clear();
-            return;
-        }
-        try {
-            Map<String, Double> monthlyTotals = service.getMonthlyTotals();
-            XYChart.Series<String, Number> series = new XYChart.Series<>();
-            double maxAmount = 0.0;
-            for (Map.Entry<String, Double> entry : monthlyTotals.entrySet()) {
-                if (entry.getKey().startsWith(selectedYear.toString())) {
-                    if (entry.getValue() > maxAmount) {
-                        maxAmount = entry.getValue();
-                    }
-                }
-            }
-            yAxis.setAutoRanging(false);
-            yAxis.setLowerBound(0);
-            yAxis.setUpperBound(maxAmount == 0 ? 100 : maxAmount * 1.1);
-            for (Month month : Month.values()) {
-                String yearMonthKey = String.format("%d-%02d", selectedYear, month.getValue());
-                double total = monthlyTotals.getOrDefault(yearMonthKey, 0.0);
-                String shortMonthName = month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
-                series.getData().add(new XYChart.Data<>(shortMonthName, total));
-            }
-            barChart.setAnimated(false);
-            barChart.getData().setAll(series);
-            barChart.setTitle("Monthly Totals for " + selectedYear);
-            for (XYChart.Data<String, Number> data : series.getData()) {
-                if (data.getYValue().doubleValue() > 0) {
-                    Tooltip.install(data.getNode(), new Tooltip(
-                            String.format("%s %d: ₹%.2f", data.getXValue(), selectedYear, data.getYValue().doubleValue())
-                    ));
-                }
-            }
-            Platform.runLater(() -> barChart.setAnimated(true));
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Bar Chart: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    @FXML
-    private void onExport() {
+    @FXML private void onExport() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Export Transactions to CSV");
         fileChooser.setInitialFileName("expenses_export_" + LocalDate.now() + ".csv");
@@ -358,9 +350,7 @@ public class MainController {
             }
         }
     }
-
-    @FXML
-    private void onImport() {
+    @FXML private void onImport() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Import Transactions from CSV");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
@@ -380,9 +370,7 @@ public class MainController {
             new Thread(importTask).start();
         }
     }
-
-    @FXML
-    private void onRetrainModel() {
+    @FXML private void onRetrainModel() {
         prog.setVisible(true);
         btnRetrain.setDisable(true);
         Task<Void> retrainTask = new Task<>() {
@@ -402,8 +390,6 @@ public class MainController {
             prog.setVisible(false);
             btnRetrain.setDisable(false);
             categorizer.reloadModel();
-            // Show a less intrusive notification for automatic retraining
-            // For now, a console log is sufficient. A small popup could be a future enhancement.
             System.out.println("Auto-retraining successful.");
         });
         retrainTask.setOnFailed(e -> {
@@ -413,9 +399,7 @@ public class MainController {
         });
         new Thread(retrainTask).start();
     }
-
-    @FXML
-    private void onPredictExpenses() {
+    @FXML private void onPredictExpenses() {
         predictionResultsArea.setText("Generating forecast... This may take a moment.");
         prog.setVisible(true);
         Task<String> predictionTask = createPredictionTask();
@@ -429,7 +413,6 @@ public class MainController {
         });
         new Thread(predictionTask).start();
     }
-
     private Task<String> createPredictionTask() {
         return new Task<>() {
             @Override
@@ -501,7 +484,6 @@ public class MainController {
             }
         };
     }
-
     private void showAlert(Alert.AlertType type, String title, String msg) {
         Platform.runLater(() -> {
             Alert alert = new Alert(type);

@@ -2,11 +2,11 @@
 
 /* --- 1. THEME DEFINITION --- */
 .root {
-    -fx-primary-color: #2c3e50; /* Slate Blue */
-    -fx-secondary-color: #34495e; /* Darker Slate Blue */
-    -fx-accent-color: #3498db; /* Bright Blue */
-    -fx-text-primary-color: #ecf0f1; /* Light Grey Text */
-    -fx-text-secondary-color: #bdc3c7; /* Muted Grey Text */
+    -fx-primary-color: #2c3e50;      /* Slate Blue */
+    -fx-secondary-color: #34495e;     /* Darker Slate Blue */
+    -fx-accent-color: #3498db;        /* Bright Blue */
+    -fx-text-primary-color: #ecf0f1;  /* Light Grey Text */
+    -fx-text-secondary-color: #bdc3c7;/* Muted Grey Text */
     -fx-control-inner-background: #34495e;
     -fx-background-color: -fx-primary-color;
 }
@@ -36,6 +36,9 @@
 .tab-pane .tab-header-area .tab-header-background { -fx-background-color: transparent; }
 .tab-pane .tab { -fx-background-color: -fx-primary-color; -fx-padding: 8 15 8 15; }
 .tab-pane .tab:selected { -fx-background-color: -fx-secondary-color; -fx-border-color: -fx-accent-color; -fx-border-width: 3 0 0 0; }
+.tab .tab-label { -fx-text-fill: white; }
+.tab:selected .tab-label { -fx-opacity: 1.0; }
+.tab:hover .tab-label { -fx-opacity: 0.8; }
 .tab-pane > .tab-content-area { -fx-background-color: -fx-secondary-color; }
 .scroll-pane { -fx-background-color: transparent; }
 .scroll-pane > .viewport { -fx-background-color: transparent; }
@@ -48,42 +51,41 @@
 .progress-bar .bar { -fx-padding: 4px; }
 .progress-bar .track { -fx-background-color: derive(-fx-secondary-color, 30%); }
 
-/* --- 5. Charts --- */
-.chart-title { -fx-font-weight: bold; -fx-text-fill: white; }
-.chart-plot-background { -fx-background-color: -fx-secondary-color; }
-.axis { -fx-tick-label-fill: -fx-text-secondary-color; -fx-border-color: derive(-fx-secondary-color, 30%); }
-#trendsTab .chart-bar { -fx-background-color: -fx-accent-color; -fx-background-radius: 5 5 0 0; }
 
 /* ========================================================================== */
-/* --- FINAL UI FIXES --- */
+/* --- DEFINITIVE FIXES FOR ALL UI GLITCHES --- */
 /* ========================================================================== */
 
-/* --- FIX #1: Make ALL Tab Title Text White --- */
-/* This rule targets the text inside both selected and unselected tabs. */
-.tab .tab-label {
-    -fx-text-fill: white; /* Force all tab text to be white */
-}
-/* This makes the unselected tabs slightly dimmer for contrast. */
-.tab:selected .tab-label {
-    -fx-opacity: 1.0;
-}
-.tab:disabled .tab-label {
-    -fx-opacity: 0.5;
-}
-.tab:hover .tab-label {
-    -fx-opacity: 0.8;
-}
+/* --- FIX #1: BAR CHART BARS --- */
+.stacked-bar-chart .chart-bar { -fx-bar-fill: -fx-accent-color; }
 
-/* --- FIX #2: Make Pie Chart Labels & Legend White --- */
-/* This targets the text on the lines pointing to the pie slices. */
-.chart-pie-label {
-    -fx-fill: white; /* Force the labels on the chart to be white */
-    -fx-font-size: 1.1em;
+/* --- FIX #2: TAB TITLE TEXT --- */
+.tab .tab-label { -fx-text-fill: white; }
+
+/* --- FIX #3: PIE CHART LABELS AND LEGEND --- */
+.chart-pie-label { -fx-fill: white; -fx-font-size: 1.1em; }
+.chart-legend { -fx-background-color: transparent; }
+.chart-legend .label { -fx-text-fill: -fx-text-primary-color; }
+
+/* --- FIX #4: COMBO BOX TEXT --- */
+.combo-box > .list-cell { -fx-text-fill: white; -fx-background-color: -fx-control-inner-background; }
+.combo-box-popup .list-view .list-cell { -fx-text-fill: white; -fx-background-color: -fx-secondary-color; }
+.combo-box-popup .list-view .list-cell:hover { -fx-text-fill: white; -fx-background-color: -fx-accent-color; }
+
+/* --- FIX #5: DATE PICKER POPUP --- */
+.date-picker-popup { -fx-background-color: -fx-secondary-color; -fx-border-color: derive(-fx-secondary-color, 50%); }
+.date-picker-popup .month-year-pane { -fx-background-color: -fx-secondary-color; }
+.date-picker-popup .month-year-pane .label { -fx-text-fill: white; }
+.date-picker-popup .spinner .arrow-button { -fx-background-color: -fx-control-inner-background; }
+.date-picker-popup .spinner .arrow-button:hover { -fx-background-color: -fx-accent-color; }
+.date-picker-popup .spinner .arrow-button .arrow { -fx-background-color: -fx-text-primary-color; }
+
+/* THIS IS THE NEW RULE FOR THE WEEKDAY NAMES (S, M, T, etc.) */
+.date-picker-popup .day-name-cell {
+    -fx-text-fill: black;
+    -fx-font-weight: bold;
 }
-/* This targets the text in the legend below the chart. */
-.chart-legend {
-    -fx-background-color: transparent; /* Ensure legend background is transparent */
-}
-.chart-legend .label {
-    -fx-text-fill: -fx-text-primary-color; /* Use the theme's light grey text */
-}
+.date-picker-popup .day-cell { -fx-text-fill: -fx-text-primary-color; }
+.date-picker-popup .day-cell:hover { -fx-background-color: derive(-fx-secondary-color, 50%); }
+.date-picker-popup .day-cell.selected { -fx-background-color: -fx-accent-color; -fx-text-fill: black; }
+.date-picker-popup .day-cell.today { -fx-border-color: -fx-accent-color; -fx-border-width: 1; }

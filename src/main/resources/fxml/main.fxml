@@ -56,13 +56,11 @@
                         <fx:include fx:id="dashboard" source="dashboard.fxml" />
                     </content>
                 </Tab>
-
                 <Tab text="Goals">
                     <content>
                         <fx:include fx:id="goals" source="goals.fxml" />
                     </content>
                 </Tab>
-
                 <Tab text="Transactions">
                     <content>
                         <VBox spacing="10.0">
@@ -105,7 +103,7 @@
                                 <ComboBox fx:id="barYearCombo" onAction="#onBarYearSelected" prefWidth="120.0" />
                             </HBox>
                             <BarChart fx:id="barChart" VBox.vgrow="ALWAYS">
-                                <xAxis><CategoryAxis side="BOTTOM" /></xAxis>
+                                <xAxis><CategoryAxis fx:id="xAxis" side="BOTTOM" /></xAxis>
                                 <yAxis><NumberAxis fx:id="yAxis" side="LEFT" /></yAxis>
                             </BarChart>
                         </VBox>

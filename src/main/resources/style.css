@@ -42,12 +42,18 @@
 .default-color3.chart-pie { -fx-pie-color: #198754; }
 #trendsTab .chart-bar { -fx-background-color: linear-gradient(to top, #0d6efd, #6610f2); -fx-background-radius: 5 5 0 0; }
 
-/* --- NEW: STYLES FOR AI CONFIDENCE METER --- */
-.combo-box-confident .arrow-button {
+/* --- AI CONFIDENCE METER STYLES --- */
+.combo-box-confident {
     -fx-border-color: #198754; /* Green */
-    -fx-border-width: 0 0 0 2;
+    -fx-border-width: 2;
+    -fx-border-radius: 3;
+    -fx-background-insets: 0;
+    -fx-background-radius: 3;
 }
-.combo-box-uncertain .arrow-button {
+.combo-box-uncertain {
     -fx-border-color: #ffc107; /* Yellow */
-    -fx-border-width: 0 0 0 2;
+    -fx-border-width: 2;
+    -fx-border-radius: 3;
+    -fx-background-insets: 0;
+    -fx-background-radius: 3;
 }

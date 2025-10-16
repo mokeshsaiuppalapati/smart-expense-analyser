@@ -2,35 +2,38 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <VBox xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.expense.ui.AddExpenseController"
       spacing="12" styleClass="root">
-
     <padding>
         <Insets top="20" right="20" bottom="20" left="20"/>
     </padding>
-
     <Label text="Add New Expense" styleClass="h1"/>
-
     <GridPane hgap="10" vgap="12">
+        <columnConstraints>
+            <ColumnConstraints />
+            <ColumnConstraints hgrow="ALWAYS" />
+            <ColumnConstraints />
+        </columnConstraints>
         <Label text="Date:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-        <DatePicker fx:id="datePicker" prefWidth="200.0" GridPane.rowIndex="0" GridPane.columnIndex="1" GridPane.columnSpan="2"/>
-
+        <DatePicker fx:id="datePicker" prefWidth="250.0" GridPane.rowIndex="0" GridPane.columnIndex="1" GridPane.columnSpan="2"/>
         <Label text="Description:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-        <TextField fx:id="descField" prefWidth="200.0" promptText="e.g., Coffee with friend" GridPane.rowIndex="1" GridPane.columnIndex="1" GridPane.columnSpan="2"/>
-
+        <TextField fx:id="descField" prefWidth="250.0" promptText="e.g., D-Mart groceries and clothes" GridPane.rowIndex="1" GridPane.columnIndex="1" GridPane.columnSpan="2"/>
         <Label text="Amount (₹):" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-        <TextField fx:id="amountField" promptText="e.g., 150.0" GridPane.rowIndex="2" GridPane.columnIndex="1" GridPane.columnSpan="2"/>
-
+        <TextField fx:id="amountField" promptText="e.g., 2500" GridPane.rowIndex="2" GridPane.columnIndex="1" GridPane.columnSpan="2"/>
         <Label text="Category:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-        <ComboBox fx:id="categoryCombo" editable="true" prefWidth="200.0" promptText="Select or type category" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+        <HBox alignment="CENTER_LEFT" spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="3">
+            <ComboBox fx:id="categoryCombo" editable="true" prefWidth="200.0" promptText="Select or type category" HBox.hgrow="ALWAYS" />
+            <StackPane fx:id="confidenceIconPane" prefWidth="20.0" />
+        </HBox>
         <Button text="Suggest" onAction="#onSuggest" GridPane.rowIndex="3" GridPane.columnIndex="2"/>
     </GridPane>
-
     <HBox spacing="10" alignment="CENTER_RIGHT" style="-fx-padding: 10 0 0 0;">
+        <Button onAction="#onSmartSplit" text="Smart Split..." />
+        <Region HBox.hgrow="ALWAYS" />
         <Button text="Cancel" onAction="#onCancel" cancelButton="true"/>
         <Button text="Save" onAction="#onSave" defaultButton="true" styleClass="button"/>
     </HBox>
-
 </VBox>

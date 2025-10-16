@@ -1,3 +1,4 @@
+Description,Category
 "dominos pizza","Food"
 "swiggy order","Food"
 "restaurant dinner","Food"
@@ -112,3 +113,131 @@
 "Charity run registration fee","Donation"
 "Biryani","Food"
 "Popcorn","Food"
+Zomato food delivery,Food
+Swiggy order,Food
+Lunch at local restaurant,Food
+Dinner with friends,Food
+Coffee at cafe,Food
+Evening snacks from bakery,Food
+Pizza order,Food
+Weekly groceries from supermarket,Groceries
+Reliance Fresh vegetable purchase,Groceries
+Milk and bread from local store,Groceries
+Buying fruits from street vendor,Groceries
+Dmart monthly shopping,Groceries
+Online grocery order from Blinkit,Groceries
+Snacks and biscuits,Groceries
+Petrol at Indian Oil pump,Transport
+Fuel for bike,Transport
+Diesel for car,Transport
+Uber ride to office,Transport
+Ola cab fare home,Transport
+Bus ticket for commute,Transport
+Metro card recharge,Transport
+Auto rickshaw fare,Transport
+Airtel postpaid bill payment,Bills
+Jio Fiber internet bill,Bills
+Monthly electricity bill payment,Bills
+Water bill TNEB,Bills
+Gas cylinder booking,Bills
+Credit card bill payment,Bills
+Prepaid phone recharge,Bills
+New shirt from Myntra,Shopping
+Amazon order electronics,Shopping
+Flipkart purchase for home,Shopping
+Bought new shoes from Bata,Shopping
+Household cleaning items,Shopping
+Mobile phone charger,Shopping
+New T-shirt,Shopping
+Medicine from Apollo Pharmacy,Health
+Doctor consultation fee,Health
+Pain relief spray,Health
+Buying vitamins and supplements,Health
+Cough syrup,Health
+Movie tickets at PVR,Entertainment
+Netflix monthly subscription,Entertainment
+Amazon Prime yearly fee,Entertainment
+Spotify Premium,Entertainment
+Book purchase from bookstore,Entertainment
+Haircut at local salon,Personal Care
+Shampoo and soap purchase,Personal Care
+Skincare product,Personal Care
+Donation to charity,Other
+Gift for a friend's birthday,Other
+Kids school fees,Fees
+Masala dosa at Saravana Bhavan,Food
+Pani puri from street vendor,Food
+Biryani order from Paradise,Food
+Idli and Vada for breakfast,Food
+Samosa and chai with colleagues,Food
+Monthly tiffin service payment,Food
+Sweets for Diwali festival,Food
+Filter coffee at local cafe,Food
+Chicken 65 from Anjappar,Food
+Vegetables from Uzhavar Sandhai,Groceries
+Atta, dal and rice from Kirana store,Groceries
+Cooking oil and spices,Groceries
+BigBasket online grocery order,Groceries
+Nandini milk packets for the week,Groceries
+Idli/Dosa batter from store,Groceries
+Fresh paneer and curd,Groceries
+Onion and potato purchase,Groceries
+Chennai local train ticket,Transport
+Share auto to metro station,Transport
+Filled petrol at HPCL pump,Transport
+Ola bike ride to work,Transport
+Rapido ride home,Transport
+FASTag recharge for car,Transport
+Monthly metro pass,Transport
+TNSTC bus ticket to hometown,Transport
+Airtel Xstream Fiber bill,Bills
+BSNL landline and broadband payment,Bills
+Apartment maintenance charges,Bills
+TNEB electricity bill online,Bills
+Indane Gas cylinder booking,Bills
+Municipal property tax payment,Bills
+Water tanker purchase,Bills
+Saree from Nalli Silks,Shopping
+Kurta for festival occasion,Shopping
+Diwali shopping at T. Nagar,Shopping
+Pressure cooker from Prestige,Shopping
+Mixer grinder repair charges,Shopping
+Plumber service for tap leak,Household
+New mobile phone from Croma,Shopping
+LED bulb purchase,Household
+Medicines from MedPlus pharmacy,Health
+Himalaya wellness products,Health
+Dental check-up and cleaning fee,Health
+Moov ointment for back pain,Health
+Doctor's visit for fever,Health
+Blouse stitching at local tailor,Personal Care
+Threading and waxing at beauty parlour,Personal Care
+Haircut and shave at men's salon,Personal Care
+Hotstar annual subscription,Entertainment
+Ticket for new Tamil movie,Entertainment
+Donation at temple hundi,Other
+Pooja items for festival,Other
+Shagun envelope for wedding gift,Gifts
+Gift for a relative's housewarming,Gifts
+Maths tuition fee for daughter,Fees
+School notebooks and stationery,Fees
+Kids pocket money for the week,Family
+House cleaning service payment,Household
+Bank ATM transaction fee,Other
+UPI payment to friend,Other
+D-Mart purchase groceries and home cleaner,Groceries
+Reliance Fresh vegetables and fruits,Groceries
+Weekly grocery run and snacks,Groceries
+Amazon order for kitchen items and spices,Groceries
+D-Mart bill for clothes and kitchenware,Shopping
+New t-shirt and jeans from Myntra,Shopping
+Flipkart order for new headphones,Shopping
+Buying a new shirt and household supplies,Shopping
+Purchase of cleaning supplies like Lizol,Household
+Harpic and Dettol from supermarket,Household
+New bedsheets and pillow covers,Household
+Apollo Pharmacy bill for medicine and soap,Health
+Buying Crocin and some personal care items,Health
+First aid kit and bandages,Health
+Shampoo and face wash from pharmacy,Personal Care
+New toothbrush and toothpaste,Personal care

@@ -6,9 +6,18 @@ import com.expense.ml.WekaPredictor;
 import com.expense.service.ExpenseService;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignH;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -19,14 +28,14 @@ public class AddExpenseController {
     @FXML private TextField descField;
     @FXML private TextField amountField;
     @FXML private ComboBox<String> categoryCombo;
+    @FXML private StackPane confidenceIconPane;
 
     private ExpenseService service;
     private MainController parentController;
     private WekaPredictor categorizer;
 
-    // Define confidence thresholds
-    private static final double CONFIDENT_THRESHOLD = 0.90; // 90%
-    private static final double UNCERTAIN_THRESHOLD = 0.60; // 60%
+    private static final double CONFIDENT_THRESHOLD = 0.90;
+    private static final double UNCERTAIN_THRESHOLD = 0.60;
 
     public void initData(ExpenseService service, MainController parent, WekaPredictor predictor, List<String> categories) {
         this.service = service;
@@ -36,10 +45,61 @@ public class AddExpenseController {
         categoryCombo.setItems(FXCollections.observableArrayList(categories));
         datePicker.setValue(LocalDate.now());
 
-        // Add a listener to clear the confidence color when the user types
         categoryCombo.getEditor().textProperty().addListener((obs, oldVal, newVal) -> {
-            clearConfidenceStyles();
+            clearConfidenceIcon();
         });
+    }
+
+    @FXML
+    private void onSmartSplit() {
+        // 1. Validate basic info
+        String description = descField.getText().trim();
+        String amountStr = amountField.getText().trim();
+        LocalDate date = datePicker.getValue();
+
+        if (description.isEmpty() || amountStr.isEmpty() || date == null) {
+            showAlert(Alert.AlertType.ERROR, "Validation Error", "Description, Amount, and Date are required to use Smart Split.");
+            return;
+        }
+
+        try {
+            double totalAmount = Double.parseDouble(amountStr);
+            if (totalAmount <= 0) {
+                showAlert(Alert.AlertType.ERROR, "Validation Error", "Amount must be a positive number.");
+                return;
+            }
+
+            // 2. Get AI suggestions
+            List<String> suggestions = categorizer.predictTopCategories(description);
+            if (suggestions.isEmpty()) {
+                showAlert(Alert.AlertType.INFORMATION, "No Suggestions", "The AI couldn't find any clear categories in the description. Please add a category manually.");
+                return;
+            }
+
+            // 3. Open the split dialog
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/split_transaction.fxml"));
+            Stage stage = new Stage();
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.setTitle("Smart Split Transaction");
+            stage.setScene(new Scene(loader.load()));
+
+            SplitTransactionController controller = loader.getController();
+            controller.initData(service, totalAmount, date, description, suggestions);
+
+            stage.showAndWait();
+
+            // 4. If the split was successful, refresh and close this window
+            if (controller.isSplitSuccessful()) {
+                parentController.refreshData();
+                closeWindow();
+            }
+
+        } catch (NumberFormatException e) {
+            showAlert(Alert.AlertType.ERROR, "Validation Error", "Please enter a valid number for the amount.");
+        } catch (IOException e) {
+            showAlert(Alert.AlertType.ERROR, "UI Error", "Could not open the Smart Split window.");
+            e.printStackTrace();
+        }
     }
 
     @FXML
@@ -100,24 +160,28 @@ public class AddExpenseController {
         if (categorizer != null && categorizer.isModelLoaded()) {
             WekaPredictor.Result result = categorizer.predict(desc);
 
-            // --- THIS IS THE NEW LOGIC FOR THE CONFIDENCE METER ---
-            clearConfidenceStyles();
+            clearConfidenceIcon();
             categoryCombo.setValue(result.category);
 
             if (result.confidence >= CONFIDENT_THRESHOLD) {
-                categoryCombo.getStyleClass().add("combo-box-confident");
+                FontIcon icon = new FontIcon(MaterialDesignC.CHECK_CIRCLE);
+                icon.setIconColor(Color.web("#198754")); // Green
+                icon.setIconSize(18);
+                confidenceIconPane.getChildren().add(icon);
             } else if (result.confidence < UNCERTAIN_THRESHOLD) {
-                categoryCombo.getStyleClass().add("combo-box-uncertain");
+                FontIcon icon = new FontIcon(MaterialDesignH.HELP_CIRCLE);
+                icon.setIconColor(Color.web("#ffc107")); // Yellow
+                icon.setIconSize(18);
+                confidenceIconPane.getChildren().add(icon);
             }
-            // --- END OF NEW LOGIC ---
 
         } else {
             showAlert(Alert.AlertType.WARNING, "Model Not Found", "The category suggestion model is not loaded.");
         }
     }
 
-    private void clearConfidenceStyles() {
-        categoryCombo.getStyleClass().removeAll("combo-box-confident", "combo-box-uncertain");
+    private void clearConfidenceIcon() {
+        confidenceIconPane.getChildren().clear();
     }
 
     @FXML

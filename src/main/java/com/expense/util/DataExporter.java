@@ -1,32 +1,48 @@
+// File: src/main/java/com/expense/util/DataExporter.java
+
 package com.expense.util;
 
-import com.expense.model.Transaction;
 import com.expense.model.Budget;
+import com.expense.model.Transaction;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 
 public class DataExporter {
-    public static void exportTransactions(String path, List<Transaction> list) {
-        try (FileWriter fw = new FileWriter(path)) {
-            fw.write("Date,Amount,Description,Category\n");
+
+    /**
+     * Exports a list of transactions to a CSV file, correctly handling commas and quotes.
+     * @param path The file path to save to.
+     * @param list The list of transactions to export.
+     */
+    public static void exportTransactions(String path, List<Transaction> list) throws IOException {
+        String[] HEADERS = { "Date", "Amount", "Description", "Category" };
+        // Use try-with-resources for automatic closing of the writer and printer
+        try (FileWriter out = new FileWriter(path);
+             CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.builder().setHeader(HEADERS).build())) {
+
             for (Transaction t : list) {
-                fw.write(t.getDate() + "," + t.getAmount() + "," + t.getDescription() + "," + t.getCategory() + "\n");
+                // This will correctly handle commas in the description by quoting the field
+                printer.printRecord(t.getDate(), t.getAmount(), t.getDescription(), t.getCategory());
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
-    public static void exportBudgets(String path, List<Budget> list) {
-        try (FileWriter fw = new FileWriter(path)) {
-            fw.write("Category,Limit\n");
+    /**
+     * Exports a list of budgets to a CSV file.
+     * @param path The file path to save to.
+     * @param list The list of budgets to export.
+     */
+    public static void exportBudgets(String path, List<Budget> list) throws IOException {
+        String[] HEADERS = { "Category", "Limit" };
+        try (FileWriter out = new FileWriter(path);
+             CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.builder().setHeader(HEADERS).build())) {
             for (Budget b : list) {
-                fw.write(b.getCategory() + "," + b.getMonthlyLimit() + "\n");
+                printer.printRecord(b.getCategory(), b.getMonthlyLimit());
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 }

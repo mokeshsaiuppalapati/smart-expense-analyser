@@ -4,6 +4,7 @@ package com.expense.service;
 
 import com.expense.model.Budget;
 import com.expense.model.RecurringTransaction;
+import com.expense.model.SavingsGoal;
 import com.expense.model.Transaction;
 import com.expense.model.TransactionData;
 import com.expense.repo.TransactionRepository;
@@ -18,7 +19,6 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class ExpenseService {
     private final TransactionRepository repo = new TransactionRepository();
@@ -32,7 +32,32 @@ public class ExpenseService {
         refreshSpendingAveragesCache();
     }
 
-    // --- RECURRING TRANSACTION SERVICE METHODS (NEW) ---
+    // --- SAVINGS GOAL SERVICE METHODS ---
+
+    public void addSavingsGoal(SavingsGoal goal) throws SQLException {
+        repo.addSavingsGoal(goal);
+    }
+
+    public List<SavingsGoal> getAllSavingsGoals() throws SQLException {
+        return repo.getAllSavingsGoals();
+    }
+
+    public void addContributionToGoal(int goalId, double amountToAdd) throws SQLException {
+        SavingsGoal goal = repo.getSavingsGoalById(goalId);
+        if (goal != null) {
+            double newAmount = goal.getCurrentAmount() + amountToAdd;
+            repo.updateSavingsGoalAmount(goalId, newAmount);
+            // Also create a transaction to log where the money went
+            String description = String.format("Contribution to goal: %s", goal.getGoalName());
+            addTransaction(LocalDate.now(), amountToAdd, description, "Savings");
+        }
+    }
+
+    public void deleteSavingsGoal(int goalId) throws SQLException {
+        repo.deleteSavingsGoal(goalId);
+    }
+
+    // --- RECURRING TRANSACTION METHODS ---
     public int processRecurringTransactions() throws SQLException {
         long todayTimestamp = LocalDate.now().toEpochDay();
         List<RecurringTransaction> dueItems = repo.getDueRecurringTransactions(todayTimestamp);

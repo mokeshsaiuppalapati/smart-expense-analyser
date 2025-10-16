@@ -56,6 +56,13 @@
                         <fx:include fx:id="dashboard" source="dashboard.fxml" />
                     </content>
                 </Tab>
+
+                <Tab text="Goals">
+                    <content>
+                        <fx:include fx:id="goals" source="goals.fxml" />
+                    </content>
+                </Tab>
+
                 <Tab text="Transactions">
                     <content>
                         <VBox spacing="10.0">

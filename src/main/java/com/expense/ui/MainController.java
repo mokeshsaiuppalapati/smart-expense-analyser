@@ -61,6 +61,7 @@ public class MainController {
     @FXML private TextArea predictionResultsArea;
     @FXML private TabPane mainTabPane;
     @FXML private DashboardController dashboardController;
+    @FXML private GoalsController goalsController;
 
     private ExpenseService service;
     private WekaPredictor categorizer;
@@ -72,11 +73,10 @@ public class MainController {
         this.service = new ExpenseService();
         this.categorizer = new WekaPredictor();
         this.expensePredictor = new ExpensePredictor();
-        barChart.setAnimated(true);
 
         try {
-            service.init(); // Initializes DB and caches
-            int itemsProcessed = service.processRecurringTransactions(); // Process due items
+            service.init();
+            int itemsProcessed = service.processRecurringTransactions();
             if (itemsProcessed > 0) {
                 showAlert(Alert.AlertType.INFORMATION, "Transactions Auto-Added",
                         itemsProcessed + " recurring transaction(s) were automatically added to your log.");
@@ -88,85 +88,15 @@ public class MainController {
         }
 
         dashboardController.setService(service);
+        goalsController.setService(service);
+
         setupTable();
         refreshData();
     }
 
-    @FXML
-    private void onOpenRecurring() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/recurring_manager.fxml"));
-            Stage stage = new Stage();
-            stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setTitle("Subscriptions & Recurring Bills");
-            stage.setScene(new Scene(loader.load()));
-
-            RecurringManagerController controller = loader.getController();
-            List<String> allCategories = service.getAllCategories();
-            controller.initData(service, allCategories);
-
-            stage.showAndWait();
-            refreshData(); // Refresh main data in case transactions were auto-added or changed
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Error", "Could not open Recurring Manager: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    // --- All other methods remain the same ---
-
-    private void onRefreshBar() {
-        Integer selectedYear = barYearCombo.getValue();
-        if (selectedYear == null) {
-            barChart.getData().clear();
-            return;
-        }
-
-        try {
-            Map<String, Double> monthlyTotals = service.getMonthlyTotals();
-            XYChart.Series<String, Number> series = new XYChart.Series<>();
-
-            double maxAmount = 0.0;
-            for (Map.Entry<String, Double> entry : monthlyTotals.entrySet()) {
-                if (entry.getKey().startsWith(selectedYear.toString())) {
-                    if (entry.getValue() > maxAmount) {
-                        maxAmount = entry.getValue();
-                    }
-                }
-            }
-
-            yAxis.setAutoRanging(false);
-            yAxis.setLowerBound(0);
-            yAxis.setUpperBound(maxAmount == 0 ? 100 : maxAmount * 1.1);
-
-            for (Month month : Month.values()) {
-                String yearMonthKey = String.format("%d-%02d", selectedYear, month.getValue());
-                double total = monthlyTotals.getOrDefault(yearMonthKey, 0.0);
-                String shortMonthName = month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
-                series.getData().add(new XYChart.Data<>(shortMonthName, total));
-            }
-
-            barChart.setAnimated(false);
-            barChart.getData().setAll(series);
-            barChart.setTitle("Monthly Totals for " + selectedYear);
-
-            for (XYChart.Data<String, Number> data : series.getData()) {
-                if (data.getYValue().doubleValue() > 0) {
-                    Tooltip.install(data.getNode(), new Tooltip(
-                            String.format("%s %d: ₹%.2f", data.getXValue(), selectedYear, data.getYValue().doubleValue())
-                    ));
-                }
-            }
-            Platform.runLater(() -> barChart.setAnimated(true));
-
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Bar Chart: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
     private void setupTable() {
         table.setEditable(true);
+
         colDate.setCellValueFactory(cell -> cell.getValue().dateProperty());
         colDate.setCellFactory(TextFieldTableCell.forTableColumn(new LocalDateStringConverter()));
         colDate.setOnEditCommit(event -> {
@@ -174,6 +104,7 @@ public class MainController {
             transaction.setDate(event.getNewValue());
             updateTransactionAndRefresh(transaction);
         });
+
         colAmount.setCellValueFactory(cell -> cell.getValue().amountProperty().asObject());
         colAmount.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         colAmount.setOnEditCommit(event -> {
@@ -181,6 +112,7 @@ public class MainController {
             transaction.setAmount(event.getNewValue());
             updateTransactionAndRefresh(transaction);
         });
+
         colDesc.setCellValueFactory(cell -> cell.getValue().descriptionProperty());
         colDesc.setCellFactory(TextFieldTableCell.forTableColumn());
         colDesc.setOnEditCommit(event -> {
@@ -188,20 +120,51 @@ public class MainController {
             transaction.setDescription(event.getNewValue());
             updateTransactionAndRefresh(transaction);
         });
+
         colCat.setCellValueFactory(cell -> cell.getValue().categoryProperty());
         colCat.setCellFactory(TextFieldTableCell.forTableColumn());
+
+        // --- UPGRADED METHOD FOR AUTOMATIC RETRAINING ---
         colCat.setOnEditCommit(event -> {
             Transaction transaction = event.getRowValue();
             String oldCategory = transaction.getCategory();
             String newCategory = event.getNewValue();
+
             if (newCategory != null && !newCategory.equalsIgnoreCase(oldCategory)) {
+                // First, update the transaction in the database
                 transaction.setCategory(newCategory);
                 updateTransactionAndRefresh(transaction);
+
+                // Then, log this as a correction for the AI
                 service.logCorrection(transaction.getDescription(), newCategory);
+
+                // Finally, automatically trigger the retraining process in the background
+                onRetrainModel();
+
+                System.out.println("Correction logged and auto-retraining started for: '" + transaction.getDescription() + "' -> '" + newCategory + "'");
             }
         });
+
         table.setItems(transactionList);
     }
+
+    public void refreshData() {
+        try {
+            transactionList.setAll(service.getAll());
+            populateSelectors();
+
+            Platform.runLater(() -> {
+                dashboardController.refreshData();
+                goalsController.refreshGoals();
+            });
+
+            onRefreshPie();
+            onRefreshBar();
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Error", "Could not load data: " + e.getMessage());
+        }
+    }
+
     private void updateTransactionAndRefresh(Transaction t) {
         try {
             service.updateTransaction(t);
@@ -211,17 +174,7 @@ public class MainController {
             refreshData();
         }
     }
-    public void refreshData() {
-        try {
-            transactionList.setAll(service.getAll());
-            populateSelectors();
-            Platform.runLater(() -> dashboardController.refreshData());
-            onRefreshPie();
-            onRefreshBar();
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Error", "Could not load transactions from database: " + e.getMessage());
-        }
-    }
+
     private void populateSelectors() {
         Integer selectedBarYear = barYearCombo.getValue();
         Integer selectedPieYear = pieYearCombo.getValue();
@@ -246,7 +199,9 @@ public class MainController {
             pieMonthCombo.setValue(LocalDate.now().getMonth());
         }
     }
-    @FXML private void onAddExpense() {
+
+    @FXML
+    private void onAddExpense() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/add_expense.fxml"));
             Stage stage = new Stage();
@@ -262,7 +217,9 @@ public class MainController {
             e.printStackTrace();
         }
     }
-    @FXML private void onOpenBudgets() {
+
+    @FXML
+    private void onOpenBudgets() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/budget_manager.fxml"));
             Stage stage = new Stage();
@@ -278,7 +235,28 @@ public class MainController {
             e.printStackTrace();
         }
     }
-    @FXML private void onDeleteTransaction() {
+
+    @FXML
+    private void onOpenRecurring() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/recurring_manager.fxml"));
+            Stage stage = new Stage();
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.setTitle("Subscriptions & Recurring Bills");
+            stage.setScene(new Scene(loader.load()));
+            RecurringManagerController controller = loader.getController();
+            List<String> allCategories = service.getAllCategories();
+            controller.initData(service, allCategories);
+            stage.showAndWait();
+            refreshData();
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Error", "Could not open Recurring Manager: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void onDeleteTransaction() {
         Transaction selected = table.getSelectionModel().getSelectedItem();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a transaction to delete.");
@@ -297,8 +275,10 @@ public class MainController {
             }
         }
     }
+
     @FXML private void onPieChartFilterChanged() { onRefreshPie(); }
     @FXML private void onBarYearSelected() { onRefreshBar(); }
+
     private void onRefreshPie() {
         Integer year = pieYearCombo.getValue();
         Month month = pieMonthCombo.getValue();
@@ -317,7 +297,52 @@ public class MainController {
             showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Pie Chart: " + e.getMessage());
         }
     }
-    @FXML private void onExport() {
+
+    private void onRefreshBar() {
+        Integer selectedYear = barYearCombo.getValue();
+        if (selectedYear == null) {
+            barChart.getData().clear();
+            return;
+        }
+        try {
+            Map<String, Double> monthlyTotals = service.getMonthlyTotals();
+            XYChart.Series<String, Number> series = new XYChart.Series<>();
+            double maxAmount = 0.0;
+            for (Map.Entry<String, Double> entry : monthlyTotals.entrySet()) {
+                if (entry.getKey().startsWith(selectedYear.toString())) {
+                    if (entry.getValue() > maxAmount) {
+                        maxAmount = entry.getValue();
+                    }
+                }
+            }
+            yAxis.setAutoRanging(false);
+            yAxis.setLowerBound(0);
+            yAxis.setUpperBound(maxAmount == 0 ? 100 : maxAmount * 1.1);
+            for (Month month : Month.values()) {
+                String yearMonthKey = String.format("%d-%02d", selectedYear, month.getValue());
+                double total = monthlyTotals.getOrDefault(yearMonthKey, 0.0);
+                String shortMonthName = month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+                series.getData().add(new XYChart.Data<>(shortMonthName, total));
+            }
+            barChart.setAnimated(false);
+            barChart.getData().setAll(series);
+            barChart.setTitle("Monthly Totals for " + selectedYear);
+            for (XYChart.Data<String, Number> data : series.getData()) {
+                if (data.getYValue().doubleValue() > 0) {
+                    Tooltip.install(data.getNode(), new Tooltip(
+                            String.format("%s %d: ₹%.2f", data.getXValue(), selectedYear, data.getYValue().doubleValue())
+                    ));
+                }
+            }
+            Platform.runLater(() -> barChart.setAnimated(true));
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Bar Chart: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void onExport() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Export Transactions to CSV");
         fileChooser.setInitialFileName("expenses_export_" + LocalDate.now() + ".csv");
@@ -333,7 +358,9 @@ public class MainController {
             }
         }
     }
-    @FXML private void onImport() {
+
+    @FXML
+    private void onImport() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Import Transactions from CSV");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
@@ -353,7 +380,9 @@ public class MainController {
             new Thread(importTask).start();
         }
     }
-    @FXML private void onRetrainModel() {
+
+    @FXML
+    private void onRetrainModel() {
         prog.setVisible(true);
         btnRetrain.setDisable(true);
         Task<Void> retrainTask = new Task<>() {
@@ -373,7 +402,9 @@ public class MainController {
             prog.setVisible(false);
             btnRetrain.setDisable(false);
             categorizer.reloadModel();
-            showAlert(Alert.AlertType.INFORMATION, "Success", "AI model has been retrained with your corrections!");
+            // Show a less intrusive notification for automatic retraining
+            // For now, a console log is sufficient. A small popup could be a future enhancement.
+            System.out.println("Auto-retraining successful.");
         });
         retrainTask.setOnFailed(e -> {
             prog.setVisible(false);
@@ -382,7 +413,9 @@ public class MainController {
         });
         new Thread(retrainTask).start();
     }
-    @FXML private void onPredictExpenses() {
+
+    @FXML
+    private void onPredictExpenses() {
         predictionResultsArea.setText("Generating forecast... This may take a moment.");
         prog.setVisible(true);
         Task<String> predictionTask = createPredictionTask();
@@ -396,6 +429,7 @@ public class MainController {
         });
         new Thread(predictionTask).start();
     }
+
     private Task<String> createPredictionTask() {
         return new Task<>() {
             @Override
@@ -467,6 +501,7 @@ public class MainController {
             }
         };
     }
+
     private void showAlert(Alert.AlertType type, String title, String msg) {
         Platform.runLater(() -> {
             Alert alert = new Alert(type);

@@ -27,21 +27,29 @@ public class Database {
                 "category TEXT NOT NULL UNIQUE, " +
                 "monthly_limit REAL NOT NULL)";
 
-        // --- NEW TABLE FOR RECURRING TRANSACTIONS ---
         String recurringTransactionsTableSql = "CREATE TABLE IF NOT EXISTS recurring_transactions (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "description TEXT NOT NULL, " +
                 "amount REAL NOT NULL, " +
                 "category TEXT NOT NULL, " +
-                "frequency TEXT NOT NULL, " +      // 'MONTHLY', 'YEARLY', etc.
-                "next_due_timestamp INTEGER NOT NULL)"; // Stores the date of the next occurrence
+                "frequency TEXT NOT NULL, " +
+                "next_due_timestamp INTEGER NOT NULL)";
+
+        // --- NEW TABLE FOR SAVINGS GOALS ---
+        String savingsGoalsTableSql = "CREATE TABLE IF NOT EXISTS savings_goals (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "goal_name TEXT NOT NULL, " +
+                "target_amount REAL NOT NULL, " +
+                "current_amount REAL NOT NULL DEFAULT 0.0, " +
+                "target_date_timestamp INTEGER)"; // Optional target date
 
         try (Connection conn = connect();
              Statement st = conn.createStatement()) {
 
             st.executeUpdate(transactionsTableSql);
             st.executeUpdate(budgetsTableSql);
-            st.executeUpdate(recurringTransactionsTableSql); // Create the new table
+            st.executeUpdate(recurringTransactionsTableSql);
+            st.executeUpdate(savingsGoalsTableSql); // Create the new table
         }
     }
 }

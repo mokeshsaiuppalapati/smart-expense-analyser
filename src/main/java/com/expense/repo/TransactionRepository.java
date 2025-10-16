@@ -5,6 +5,7 @@ package com.expense.repo;
 import com.expense.db.Database;
 import com.expense.model.Budget;
 import com.expense.model.RecurringTransaction;
+import com.expense.model.SavingsGoal;
 import com.expense.model.Transaction;
 import com.expense.model.TransactionData;
 
@@ -22,7 +23,87 @@ public class TransactionRepository {
         Database.createTables();
     }
 
-    // --- RECURRING TRANSACTION METHODS (NEW) ---
+    // --- SAVINGS GOAL METHODS ---
+
+    public void addSavingsGoal(SavingsGoal goal) throws SQLException {
+        String sql = "INSERT INTO savings_goals(goal_name, target_amount, current_amount, target_date_timestamp) VALUES(?,?,?,?)";
+        try (Connection conn = Database.connect();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, goal.getGoalName());
+            ps.setDouble(2, goal.getTargetAmount());
+            ps.setDouble(3, goal.getCurrentAmount());
+            if (goal.getTargetDate() != null) {
+                ps.setLong(4, goal.getTargetDate().toEpochDay());
+            } else {
+                ps.setNull(4, Types.INTEGER);
+            }
+            ps.executeUpdate();
+        }
+    }
+
+    public List<SavingsGoal> getAllSavingsGoals() throws SQLException {
+        List<SavingsGoal> goals = new ArrayList<>();
+        String sql = "SELECT * FROM savings_goals ORDER BY id";
+        try (Connection conn = Database.connect();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                long dateTimestamp = rs.getLong("target_date_timestamp");
+                LocalDate targetDate = rs.wasNull() ? null : LocalDate.ofEpochDay(dateTimestamp);
+                goals.add(new SavingsGoal(
+                        rs.getInt("id"),
+                        rs.getString("goal_name"),
+                        rs.getDouble("target_amount"),
+                        rs.getDouble("current_amount"),
+                        targetDate
+                ));
+            }
+        }
+        return goals;
+    }
+
+    public void updateSavingsGoalAmount(int goalId, double newAmount) throws SQLException {
+        String sql = "UPDATE savings_goals SET current_amount = ? WHERE id = ?";
+        try (Connection conn = Database.connect();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDouble(1, newAmount);
+            ps.setInt(2, goalId);
+            ps.executeUpdate();
+        }
+    }
+
+    public void deleteSavingsGoal(int goalId) throws SQLException {
+        String sql = "DELETE FROM savings_goals WHERE id = ?";
+        try (Connection conn = Database.connect();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, goalId);
+            ps.executeUpdate();
+        }
+    }
+
+    public SavingsGoal getSavingsGoalById(int goalId) throws SQLException {
+        String sql = "SELECT * FROM savings_goals WHERE id = ?";
+        try (Connection conn = Database.connect();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, goalId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    long dateTimestamp = rs.getLong("target_date_timestamp");
+                    LocalDate targetDate = rs.wasNull() ? null : LocalDate.ofEpochDay(dateTimestamp);
+                    return new SavingsGoal(
+                            rs.getInt("id"),
+                            rs.getString("goal_name"),
+                            rs.getDouble("target_amount"),
+                            rs.getDouble("current_amount"),
+                            targetDate
+                    );
+                }
+            }
+        }
+        return null;
+    }
+
+    // --- RECURRING TRANSACTION METHODS ---
 
     public List<RecurringTransaction> getAllRecurringTransactions() throws SQLException {
         List<RecurringTransaction> list = new ArrayList<>();
@@ -98,7 +179,8 @@ public class TransactionRepository {
         }
     }
 
-    // --- All other existing methods ---
+    // --- ALL OTHER METHODS ---
+
     public Map<String, Double> getCategoryAverageSpending() throws SQLException {
         Map<String, Double> averages = new HashMap<>();
         String sql = "SELECT category, AVG(amount) as avg_spend FROM transactions GROUP BY category";

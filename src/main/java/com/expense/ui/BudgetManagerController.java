@@ -49,30 +49,28 @@ public class BudgetManagerController {
     @FXML
     public void initialize() {
         setupTableColumns();
+        budgetTable.setItems(budgetList);
     }
 
     private void setupTableColumns() {
         categoryCol.setCellValueFactory(cell -> new javafx.beans.property.SimpleStringProperty(cell.getValue().getCategory()));
         limitCol.setCellValueFactory(cell -> new javafx.beans.property.SimpleDoubleProperty(cell.getValue().getMonthlyLimit()).asObject());
 
-        // Make the Limit column editable
         limitCol.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         limitCol.setOnEditCommit(event -> {
             Budget budget = event.getRowValue();
             budget.setMonthlyLimit(event.getNewValue());
             if (budget.getId() != 0) {
-                // FIXED: Added try-catch for the service call
                 try {
                     service.updateBudget(budget);
-                    loadBudgets(); // Reload to refresh everything
+                    loadBudgets();
                 } catch (Exception e) {
                     showAlert(Alert.AlertType.ERROR, "Update Failed", "Could not update budget: " + e.getMessage());
-                    loadBudgets(); // Reload to revert the visual change in the table
+                    loadBudgets();
                 }
             }
         });
 
-        // These now correctly read from the fast in-memory cache
         spentCol.setCellValueFactory(cell -> {
             double spent = spendingCache.getOrDefault(cell.getValue().getCategory(), 0.0);
             return new javafx.beans.property.SimpleDoubleProperty(spent).asObject();
@@ -84,7 +82,6 @@ public class BudgetManagerController {
             return new javafx.beans.property.SimpleDoubleProperty(remaining).asObject();
         });
 
-        // --- Progress Bar Cell ---
         progressCol.setCellFactory(param -> new TableCell<>() {
             private final ProgressBar progressBar = new ProgressBar();
             private final Label percentLabel = new Label();
@@ -101,10 +98,8 @@ public class BudgetManagerController {
                     double spent = spendingCache.getOrDefault(budget.getCategory(), 0.0);
                     double limit = budget.getMonthlyLimit();
                     double progress = (limit > 0) ? spent / limit : 0.0;
-
                     progressBar.setProgress(progress);
                     percentLabel.setText(String.format("%.0f%%", progress * 100));
-
                     if (progress > 1.0) {
                         progressBar.setStyle("-fx-accent: #CF6679;");
                     } else if (progress > 0.85) {
@@ -117,11 +112,10 @@ public class BudgetManagerController {
             }
         });
 
-        // --- Actions (Delete Button) Cell ---
         Callback<TableColumn<Budget, Void>, TableCell<Budget, Void>> cellFactory = param -> new TableCell<>() {
             private final Button btn = new Button("Delete");
             {
-                btn.getStyleClass().add("delete-button"); // For CSS styling
+                btn.getStyleClass().add("delete-button");
                 btn.setOnAction(event -> {
                     Budget budget = getTableView().getItems().get(getIndex());
                     onDeleteBudget(budget);
@@ -138,15 +132,12 @@ public class BudgetManagerController {
     }
 
     private void loadBudgets() {
-        // FIXED: Added try-catch for all database operations
         try {
             spendingCache.clear();
             List<Budget> budgets = service.getAllBudgets();
             Map<String, Double> currentMonthSpending = service.getCategoryTotalsForMonth(YearMonth.now());
             spendingCache.putAll(currentMonthSpending);
-
             budgetList.setAll(budgets);
-            budgetTable.setItems(budgetList);
             updateSummary();
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Database Error", "Could not load budget data: " + e.getMessage());
@@ -161,13 +152,11 @@ public class BudgetManagerController {
         lblTotalBudget.setText(String.format("₹%.2f", totalBudget));
         lblTotalSpent.setText(String.format("₹%.2f", totalSpent));
         lblTotalRemaining.setText(String.format("₹%.2f", totalRemaining));
-
         lblTotalRemaining.setTextFill(totalRemaining < 0 ? Color.RED : Color.GREEN);
     }
 
     @FXML
     public void onSuggestBudgets() {
-        // FIXED: Added try-catch for the service call
         try {
             List<Budget> suggestions = service.getBudgetSuggestions();
             List<String> existingCategories = budgetList.stream().map(Budget::getCategory).collect(Collectors.toList());
@@ -183,8 +172,24 @@ public class BudgetManagerController {
         }
     }
 
+    // --- THIS METHOD IS UPGRADED ---
     @FXML
     public void onAddBudget() {
+        Budget selected = budgetTable.getSelectionModel().getSelectedItem();
+
+        // If a new suggestion is selected in the table, save that one directly.
+        if (selected != null && selected.getId() == 0) {
+            try {
+                service.addBudget(selected);
+                loadBudgets();
+                clearForm();
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Save Failed", "Could not save the selected budget: " + e.getMessage());
+            }
+            return;
+        }
+
+        // Otherwise, fall back to using the text fields as before.
         String cat = categoryField.getText().trim();
         String limitText = limitField.getText().trim();
 
@@ -193,7 +198,6 @@ public class BudgetManagerController {
             return;
         }
 
-        // FIXED: Added try-catch for the service call
         try {
             double limit = Double.parseDouble(limitText);
             if (limit <= 0) throw new NumberFormatException();
@@ -208,19 +212,21 @@ public class BudgetManagerController {
         }
     }
 
+    // --- THIS METHOD IS UPGRADED ---
     private void onDeleteBudget(Budget budgetToDelete) {
+        // If it's a new suggestion (not in DB), just remove it from the list without confirmation.
         if (budgetToDelete.getId() == 0) {
             budgetList.remove(budgetToDelete);
             return;
         }
 
+        // If it's an existing budget, show confirmation before deleting from the database.
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Confirm Deletion");
         confirm.setHeaderText("Delete Budget for '" + budgetToDelete.getCategory() + "'?");
         Optional<ButtonType> result = confirm.showAndWait();
 
         if (result.isPresent() && result.get() == ButtonType.OK) {
-            // FIXED: Added try-catch for the service call
             try {
                 service.deleteBudget(budgetToDelete.getId());
                 loadBudgets();
@@ -233,6 +239,7 @@ public class BudgetManagerController {
     private void clearForm() {
         categoryField.clear();
         limitField.clear();
+        budgetTable.getSelectionModel().clearSelection();
     }
 
     private void showAlert(Alert.AlertType type, String title, String msg) {

@@ -24,7 +24,7 @@
     <top>
         <VBox>
             <HBox alignment="CENTER_LEFT" spacing="8.0" style="-fx-padding: 0 0 10 0;">
-                <Label styleClass="h1" text="Smart Expense Analyser" />
+                <Label styleClass="h1" text="Smart Expense Analyzer" />
                 <Region HBox.hgrow="ALWAYS" />
                 <Button onAction="#onImport" styleClass="top-bar-button" text="Import">
                     <graphic><FontIcon iconLiteral="mdi2d-database-import-outline" styleClass="glyph-icon" /></graphic>
@@ -41,6 +41,9 @@
                 <Button fx:id="btnRetrain" onAction="#onRetrainModel" styleClass="top-bar-button" text="Retrain AI">
                     <graphic><FontIcon iconLiteral="mdi2r-robot-outline" styleClass="glyph-icon" /></graphic>
                 </Button>
+                <Button onAction="#onLogout" styleClass="top-bar-button" text="Logout">
+                    <graphic><FontIcon iconLiteral="mdi2l-logout" styleClass="glyph-icon" /></graphic>
+                </Button>
                 <ProgressIndicator fx:id="prog" prefHeight="25.0" prefWidth="25.0" visible="false" />
             </HBox>
         </VBox>
@@ -48,16 +51,8 @@
     <center>
         <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE" BorderPane.alignment="CENTER">
             <tabs>
-                <Tab text="Dashboard">
-                    <content>
-                        <fx:include fx:id="dashboard" source="dashboard.fxml" />
-                    </content>
-                </Tab>
-                <Tab text="Goals">
-                    <content>
-                        <fx:include fx:id="goals" source="goals.fxml" />
-                    </content>
-                </Tab>
+                <Tab text="Dashboard"> <content> <fx:include fx:id="dashboard" source="dashboard.fxml" /> </content> </Tab>
+                <Tab text="Goals"> <content> <fx:include fx:id="goals" source="goals.fxml" /> </content> </Tab>
                 <Tab text="Transactions">
                     <content>
                         <VBox spacing="10.0">
@@ -100,9 +95,7 @@
                                 <ComboBox fx:id="barYearCombo" onAction="#onBarYearSelected" prefWidth="120.0" />
                             </HBox>
                             <Label fx:id="barChartTitle" style="-fx-font-size: 1.5em; -fx-font-weight: bold;"/>
-
                             <HBox fx:id="barChartContainer" alignment="BOTTOM_CENTER" prefHeight="400.0" spacing="10.0" VBox.vgrow="ALWAYS" />
-
                         </VBox>
                     </content>
                 </Tab>

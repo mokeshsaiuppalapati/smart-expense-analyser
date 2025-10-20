@@ -36,20 +36,12 @@ public class ExpenseService {
             "Entertainment", "Personal Care", "Household", "Fees", "Gifts", "Savings"
     );
 
-    public List<String> getAvailableCategoriesForUser() throws SQLException {
-        Set<String> categorySet = new LinkedHashSet<>(PREDEFINED_CATEGORIES);
-        List<String> userCategories = repo.getAllCategories(AuthService.getCurrentUserId());
-        categorySet.addAll(userCategories);
-        List<String> sortedList = new ArrayList<>(categorySet);
-        Collections.sort(sortedList);
-        return sortedList;
-    }
-
     public static class BudgetAlertInfo {
         public final Budget budget;
         public final int level;
         public BudgetAlertInfo(Budget budget, int level) { this.budget = budget; this.level = level; }
     }
+
     public Optional<BudgetAlertInfo> checkBudgetThresholds(String category, double newAmount) throws SQLException {
         if (prefs.getBoolean(BUDGET_ALERTS_DISABLED_KEY, false)) return Optional.empty();
         int userId = AuthService.getCurrentUserId();
@@ -84,6 +76,15 @@ public class ExpenseService {
         prefs.putBoolean(BUDGET_ALERTS_DISABLED_KEY, true);
     }
 
+    public List<String> getAvailableCategoriesForUser() throws SQLException {
+        Set<String> categorySet = new LinkedHashSet<>(PREDEFINED_CATEGORIES);
+        List<String> userCategories = repo.getAllCategories(AuthService.getCurrentUserId());
+        categorySet.addAll(userCategories);
+        List<String> sortedList = new ArrayList<>(categorySet);
+        Collections.sort(sortedList);
+        return sortedList;
+    }
+    public Map<String, Double> getMonthlyTotalsForYear(int year) throws SQLException { return repo.getMonthlyTotalsForYear(AuthService.getCurrentUserId(), year); }
     public void init() throws SQLException { repo.init(); }
     public void postLoginInit() throws SQLException { refreshSpendingAveragesCache(); }
     public Optional<Persona> generatePersona() throws Exception {
@@ -180,7 +181,6 @@ public class ExpenseService {
     public List<Transaction> getAll() throws SQLException { return repo.getAll(AuthService.getCurrentUserId()); }
     public List<Transaction> getRecentTransactions(int limit) throws SQLException { return repo.getRecentTransactions(AuthService.getCurrentUserId(), limit); }
     public Map<String, Double> getCategoryTotalsForMonth(YearMonth yearMonth) throws SQLException { return repo.getCategoryTotalsForMonth(AuthService.getCurrentUserId(), yearMonth); }
-    public Map<String, Double> getMonthlyTotalsForYear(int year) throws SQLException { return repo.getMonthlyTotalsForYear(AuthService.getCurrentUserId(), year); }
     public double getTotalForMonth(YearMonth yearMonth) throws SQLException { return repo.getTotalForMonth(AuthService.getCurrentUserId(), yearMonth); }
     public List<String> getAllCategories() throws SQLException { return repo.getAllCategories(AuthService.getCurrentUserId()); }
     public List<Budget> getAllBudgets() throws SQLException { return repo.getAllBudgets(AuthService.getCurrentUserId()); }

@@ -93,7 +93,6 @@ public class MainController {
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Error", "Could not initialize user session: " + e.getMessage());
         }
-
         dashboardController.setService(service);
         goalsController.setService(service);
         refreshData();
@@ -105,56 +104,43 @@ public class MainController {
             barChartContainer.getChildren().clear();
             return;
         }
-
         barChartContainer.getChildren().clear();
         barChartTitle.setText("Monthly Totals for " + selectedYear);
-
         try {
             Map<String, Double> monthlyTotals = service.getMonthlyTotalsForYear(selectedYear);
             double maxAmount = monthlyTotals.values().stream().mapToDouble(d -> d).max().orElse(1.0);
-
             Timeline animation = new Timeline();
-
             for (Month month : Month.values()) {
                 String yearMonthKey = String.format("%d-%02d", selectedYear, month.getValue());
                 double total = monthlyTotals.getOrDefault(yearMonthKey, 0.0);
-
                 Label valueLabel = new Label(String.format("₹%.0f", total));
                 valueLabel.getStyleClass().add("custom-bar-value-label");
                 valueLabel.setVisible(false);
-
                 Region bar = new Region();
                 bar.getStyleClass().add("custom-bar");
                 bar.setPrefWidth(30);
                 bar.setMinHeight(0);
-
                 Label monthLabel = new Label(month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
                 monthLabel.getStyleClass().add("custom-bar-label");
-
                 VBox barVBox = new VBox(5, valueLabel, bar, monthLabel);
                 barVBox.setAlignment(Pos.BOTTOM_CENTER);
+                HBox.setHgrow(barVBox, javafx.scene.layout.Priority.ALWAYS);
                 barChartContainer.getChildren().add(barVBox);
-
                 barVBox.setOnMouseEntered(e -> valueLabel.setVisible(true));
                 barVBox.setOnMouseExited(e -> valueLabel.setVisible(false));
-
                 double barHeight = (total / maxAmount) * (barChartContainer.getPrefHeight() - 50);
-
                 KeyValue kv = new KeyValue(bar.minHeightProperty(), barHeight);
                 KeyFrame kf = new KeyFrame(Duration.millis(500 + (month.getValue() * 50)), kv);
                 animation.getKeyFrames().add(kf);
             }
-
             animation.play();
-
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Bar Chart: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    @FXML
-    private void onLogout() {
+    @FXML private void onLogout() {
         try {
             Stage currentStage = (Stage) mainTabPane.getScene().getWindow();
             currentStage.close();
@@ -171,7 +157,6 @@ public class MainController {
             e.printStackTrace();
         }
     }
-
     private void setupTable() {
         table.setEditable(true);
         colDate.setCellValueFactory(cell -> cell.getValue().dateProperty());

@@ -15,24 +15,31 @@ import java.util.Map;
 
 public class TransactionRepository {
 
-    public void init() throws SQLException {
-        Database.createTables();
+    public void init() throws SQLException { Database.createTables(); }
+
+    // --- THIS METHOD WAS MISSING ---
+    public void updateBudgetAlertLevel(int userId, int budgetId, String alertLevel) throws SQLException {
+        String sql = "UPDATE budgets SET last_alert_level = ? WHERE id = ? AND user_id = ?";
+        try (Connection conn = Database.connect();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, alertLevel);
+            ps.setInt(2, budgetId);
+            ps.setInt(3, userId);
+            ps.executeUpdate();
+        }
     }
 
-    // --- USER METHODS ---
+    // --- ALL OTHER METHODS ARE CORRECT ---
     public User findUserByUsername(String username) throws SQLException {
         String sql = "SELECT * FROM users WHERE username = ?";
         try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, username);
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return new User(rs.getInt("id"), rs.getString("username"), rs.getString("password_hash"));
-                }
+                if (rs.next()) return new User(rs.getInt("id"), rs.getString("username"), rs.getString("password_hash"));
             }
         }
         return null;
     }
-
     public void createUser(String username, String passwordHash) throws SQLException {
         String sql = "INSERT INTO users(username, password_hash) VALUES(?,?)";
         try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -41,8 +48,6 @@ public class TransactionRepository {
             ps.executeUpdate();
         }
     }
-
-    // --- SAVINGS GOAL METHODS ---
     public void addSavingsGoal(int userId, SavingsGoal goal) throws SQLException {
         String sql = "INSERT INTO savings_goals(user_id, goal_name, target_amount, current_amount, target_date_timestamp) VALUES(?,?,?,?,?)";
         try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -92,8 +97,6 @@ public class TransactionRepository {
         }
         return null;
     }
-
-    // --- RECURRING TRANSACTION METHODS ---
     public List<RecurringTransaction> getAllRecurringTransactions(int userId) throws SQLException {
         List<RecurringTransaction> list = new ArrayList<>();
         String sql = "SELECT * FROM recurring_transactions WHERE user_id = ? ORDER BY next_due_timestamp ASC";
@@ -136,8 +139,6 @@ public class TransactionRepository {
             ps.executeUpdate();
         }
     }
-
-    // --- TRANSACTION METHODS ---
     public void insert(int userId, Transaction t) throws SQLException {
         String sql = "INSERT INTO transactions(user_id, timestamp, amount, description, category) VALUES(?,?,?,?,?)";
         try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -260,8 +261,58 @@ public class TransactionRepository {
         }
         return averages;
     }
-
-    // --- BUDGET METHODS ---
+    public void addBudget(int userId, Budget b) throws SQLException {
+        Budget existing = getBudgetByCategory(userId, b.getCategory());
+        if (existing != null) {
+            b.setId(existing.getId());
+            updateBudget(userId, b);
+        } else {
+            String sql = "INSERT INTO budgets(user_id, category, monthly_limit) VALUES(?,?,?)";
+            try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, userId); ps.setString(2, b.getCategory()); ps.setDouble(3, b.getMonthlyLimit());
+                ps.executeUpdate();
+            }
+        }
+    }
+    public void updateBudget(int userId, Budget b) throws SQLException {
+        String sql = "UPDATE budgets SET monthly_limit = ? WHERE id = ? AND user_id = ?";
+        try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDouble(1, b.getMonthlyLimit()); ps.setInt(2, b.getId()); ps.setInt(3, userId);
+            ps.executeUpdate();
+        }
+    }
+    public void deleteBudget(int userId, int id) throws SQLException {
+        String sql = "DELETE FROM budgets WHERE id=? AND user_id = ?";
+        try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id); ps.setInt(2, userId);
+            ps.executeUpdate();
+        }
+    }
+    public List<TransactionData> getTransactionDataForRegression(int userId) throws SQLException {
+        List<TransactionData> data = new ArrayList<>();
+        String sql = "WITH CategoryMap AS ( SELECT DISTINCT category, ROW_NUMBER() OVER () - 1 as categoryCode FROM transactions WHERE user_id = ?) SELECT t.timestamp, t.amount, cm.categoryCode FROM transactions t JOIN CategoryMap cm ON t.category = cm.category WHERE t.user_id = ? ORDER BY t.timestamp;";
+        try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId); ps.setInt(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    LocalDate transactionDate = LocalDate.ofEpochDay(rs.getLong("timestamp"));
+                    data.add(new TransactionData(transactionDate.getDayOfWeek().getValue(), transactionDate.getDayOfMonth(), transactionDate.getMonthValue(), rs.getDouble("amount"), rs.getInt("categoryCode")));
+                }
+            }
+        }
+        return data;
+    }
+    public Map<String, Integer> getCategoryCodeMap(int userId) throws SQLException {
+        Map<String, Integer> map = new HashMap<>();
+        String sql = "SELECT DISTINCT category, ROW_NUMBER() OVER () - 1 as categoryCode FROM transactions WHERE user_id = ?;";
+        try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) map.put(rs.getString("category"), rs.getInt("categoryCode"));
+            }
+        }
+        return map;
+    }
     public List<Budget> getAllBudgets(int userId) throws SQLException {
         List<Budget> list = new ArrayList<>();
         String sql = "SELECT * FROM budgets WHERE user_id = ?";
@@ -297,62 +348,5 @@ public class TransactionRepository {
             }
         }
         return null;
-    }
-    public void addBudget(int userId, Budget b) throws SQLException {
-        String sql = "INSERT INTO budgets(user_id, category, monthly_limit) VALUES(?,?,?) ON CONFLICT(user_id, category) DO UPDATE SET monthly_limit = excluded.monthly_limit";
-        try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId); ps.setString(2, b.getCategory()); ps.setDouble(3, b.getMonthlyLimit());
-            ps.executeUpdate();
-        }
-    }
-    public void updateBudget(int userId, Budget b) throws SQLException {
-        String sql = "UPDATE budgets SET monthly_limit = ? WHERE id = ? AND user_id = ?";
-        try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setDouble(1, b.getMonthlyLimit()); ps.setInt(2, b.getId()); ps.setInt(3, userId);
-            ps.executeUpdate();
-        }
-    }
-    public void deleteBudget(int userId, int id) throws SQLException {
-        String sql = "DELETE FROM budgets WHERE id=? AND user_id = ?";
-        try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, id); ps.setInt(2, userId);
-            ps.executeUpdate();
-        }
-    }
-    public void updateBudgetAlertLevel(int userId, int budgetId, String alertLevel) throws SQLException {
-        String sql = "UPDATE budgets SET last_alert_level = ? WHERE id = ? AND user_id = ?";
-        try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, alertLevel);
-            ps.setInt(2, budgetId);
-            ps.setInt(3, userId);
-            ps.executeUpdate();
-        }
-    }
-
-    // --- ML Data Methods ---
-    public List<TransactionData> getTransactionDataForRegression(int userId) throws SQLException {
-        List<TransactionData> data = new ArrayList<>();
-        String sql = "WITH CategoryMap AS ( SELECT DISTINCT category, ROW_NUMBER() OVER () - 1 as categoryCode FROM transactions WHERE user_id = ?) SELECT t.timestamp, t.amount, cm.categoryCode FROM transactions t JOIN CategoryMap cm ON t.category = cm.category WHERE t.user_id = ? ORDER BY t.timestamp;";
-        try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId); ps.setInt(2, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    LocalDate transactionDate = LocalDate.ofEpochDay(rs.getLong("timestamp"));
-                    data.add(new TransactionData(transactionDate.getDayOfWeek().getValue(), transactionDate.getDayOfMonth(), transactionDate.getMonthValue(), rs.getDouble("amount"), rs.getInt("categoryCode")));
-                }
-            }
-        }
-        return data;
-    }
-    public Map<String, Integer> getCategoryCodeMap(int userId) throws SQLException {
-        Map<String, Integer> map = new HashMap<>();
-        String sql = "SELECT DISTINCT category, ROW_NUMBER() OVER () - 1 as categoryCode FROM transactions WHERE user_id = ?;";
-        try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) map.put(rs.getString("category"), rs.getInt("categoryCode"));
-            }
-        }
-        return map;
     }
 }

@@ -117,7 +117,7 @@ public class AddExpenseController {
         alert.setContentText("Your limit is " + String.format("₹%.2f", alertInfo.budget.getMonthlyLimit()) + ".\n\nDo you still want to add this expense?");
 
         if (alertInfo.level >= 100) {
-            CheckBox checkBox = new CheckBox("Do not show these budget alerts again");
+            CheckBox checkBox = new CheckBox("Do not show these 'over budget' alerts again");
             alert.getDialogPane().setExpandableContent(checkBox);
             alert.getDialogPane().setExpanded(true);
 

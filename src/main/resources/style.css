@@ -49,12 +49,9 @@
 .progress-bar .track { -fx-background-color: derive(-fx-secondary-color, 30%); }
 
 /* --- 5. Charts --- */
-.chart-title { -fx-font-weight: bold; -fx-text-fill: white; }
-.chart-plot-background { -fx-background-color: -fx-secondary-color; }
-.axis { -fx-tick-label-fill: -fx-text-secondary-color; -fx-border-color: derive(-fx-secondary-color, 30%); }
+.chart-pie-label { -fx-fill: white; -fx-font-size: 1.1em; }
 .chart-legend { -fx-background-color: transparent; }
 .chart-legend .label { -fx-text-fill: -fx-text-primary-color; }
-.chart-pie-label { -fx-fill: white; -fx-font-size: 1.1em; }
 .combo-box > .list-cell { -fx-text-fill: white; -fx-background-color: -fx-control-inner-background; }
 .combo-box-popup .list-view .list-cell { -fx-text-fill: white; -fx-background-color: -fx-secondary-color; }
 .combo-box-popup .list-view .list-cell:hover { -fx-text-fill: white; -fx-background-color: -fx-accent-color; }
@@ -64,7 +61,7 @@
 .date-picker-popup .spinner .arrow-button { -fx-background-color: -fx-control-inner-background; }
 .date-picker-popup .spinner .arrow-button:hover { -fx-background-color: -fx-accent-color; }
 .date-picker-popup .spinner .arrow-button .arrow { -fx-background-color: -fx-text-primary-color; }
-.date-picker-popup .day-name-cell { -fx-text-fill: white; -fx-font-weight: bold; }
+.date-picker-popup .day-name-cell { -fx-text-fill: black; -fx-font-weight: bold; }
 .date-picker-popup .day-cell { -fx-text-fill: -fx-text-primary-color; }
 .date-picker-popup .day-cell:hover { -fx-background-color: derive(-fx-secondary-color, 50%); }
 .date-picker-popup .day-cell.selected { -fx-background-color: -fx-accent-color; -fx-text-fill: white; }
@@ -73,7 +70,7 @@
 /* --- NEW STYLES FOR THE CUSTOM BAR CHART --- */
 .custom-bar {
     -fx-background-color: -fx-accent-color;
-    -fx-background-radius: 3 3 0 0;
+    -fx-background-radius: 3 3 0 0; /* Slightly rounded top corners */
 }
 .custom-bar-label {
     -fx-text-fill: -fx-text-secondary-color;

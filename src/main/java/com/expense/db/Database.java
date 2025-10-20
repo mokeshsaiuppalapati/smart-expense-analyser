@@ -34,14 +34,13 @@ public class Database {
                     "FOREIGN KEY (user_id) REFERENCES users(id))";
             st.executeUpdate(transactionsTableSql);
 
+            // --- THIS TABLE IS FIXED ---
             String budgetsTableSql = "CREATE TABLE IF NOT EXISTS budgets (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     "user_id INTEGER, " +
                     "category TEXT NOT NULL, " +
                     "monthly_limit REAL NOT NULL, " +
-                    "last_alert_level TEXT, " + // e.g., "90_2025-10"
-                    "UNIQUE(user_id, category), " +
-                    "FOREIGN KEY (user_id) REFERENCES users(id))";
+                    "UNIQUE(user_id, category))"; // UNIQUE constraint is essential for ON CONFLICT
             st.executeUpdate(budgetsTableSql);
 
             String recurringTransactionsTableSql = "CREATE TABLE IF NOT EXISTS recurring_transactions (" +

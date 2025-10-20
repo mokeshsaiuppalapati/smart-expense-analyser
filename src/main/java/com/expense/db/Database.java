@@ -15,41 +15,53 @@ public class Database {
     }
 
     public static void createTables() throws SQLException {
-        String transactionsTableSql = "CREATE TABLE IF NOT EXISTS transactions (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "timestamp INTEGER NOT NULL, " +
-                "amount REAL NOT NULL, " +
-                "description TEXT, " +
-                "category TEXT NOT NULL)";
-
-        String budgetsTableSql = "CREATE TABLE IF NOT EXISTS budgets (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "category TEXT NOT NULL UNIQUE, " +
-                "monthly_limit REAL NOT NULL)";
-
-        String recurringTransactionsTableSql = "CREATE TABLE IF NOT EXISTS recurring_transactions (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "description TEXT NOT NULL, " +
-                "amount REAL NOT NULL, " +
-                "category TEXT NOT NULL, " +
-                "frequency TEXT NOT NULL, " +
-                "next_due_timestamp INTEGER NOT NULL)";
-
-        // --- NEW TABLE FOR SAVINGS GOALS ---
-        String savingsGoalsTableSql = "CREATE TABLE IF NOT EXISTS savings_goals (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "goal_name TEXT NOT NULL, " +
-                "target_amount REAL NOT NULL, " +
-                "current_amount REAL NOT NULL DEFAULT 0.0, " +
-                "target_date_timestamp INTEGER)"; // Optional target date
-
         try (Connection conn = connect();
              Statement st = conn.createStatement()) {
 
+            String usersTableSql = "CREATE TABLE IF NOT EXISTS users (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "username TEXT NOT NULL UNIQUE, " +
+                    "password_hash TEXT NOT NULL)";
+            st.executeUpdate(usersTableSql);
+
+            String transactionsTableSql = "CREATE TABLE IF NOT EXISTS transactions (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER, " + // No "NOT NULL" for backward compatibility
+                    "timestamp INTEGER NOT NULL, " +
+                    "amount REAL NOT NULL, " +
+                    "description TEXT, " +
+                    "category TEXT NOT NULL, " +
+                    "FOREIGN KEY (user_id) REFERENCES users(id))";
             st.executeUpdate(transactionsTableSql);
+
+            String budgetsTableSql = "CREATE TABLE IF NOT EXISTS budgets (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER, " +
+                    "category TEXT NOT NULL, " +
+                    "monthly_limit REAL NOT NULL, " +
+                    "FOREIGN KEY (user_id) REFERENCES users(id))";
             st.executeUpdate(budgetsTableSql);
+
+            String recurringTransactionsTableSql = "CREATE TABLE IF NOT EXISTS recurring_transactions (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER, " +
+                    "description TEXT NOT NULL, " +
+                    "amount REAL NOT NULL, " +
+                    "category TEXT NOT NULL, " +
+                    "frequency TEXT NOT NULL, " +
+                    "next_due_timestamp INTEGER NOT NULL, " +
+                    "FOREIGN KEY (user_id) REFERENCES users(id))";
             st.executeUpdate(recurringTransactionsTableSql);
-            st.executeUpdate(savingsGoalsTableSql); // Create the new table
+
+            String savingsGoalsTableSql = "CREATE TABLE IF NOT EXISTS savings_goals (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER, " +
+                    "goal_name TEXT NOT NULL, " +
+                    "target_amount REAL NOT NULL, " +
+                    "current_amount REAL NOT NULL DEFAULT 0.0, " +
+                    "target_date_timestamp INTEGER, " +
+                    "FOREIGN KEY (user_id) REFERENCES users(id))";
+            st.executeUpdate(savingsGoalsTableSql);
         }
     }
 }

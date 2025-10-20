@@ -8,6 +8,7 @@ import com.expense.model.TransactionData;
 import com.expense.ml.ExpensePredictor;
 import com.expense.ml.WekaPredictor;
 import com.expense.ml.WekaTrainer;
+import com.expense.service.AuthService;
 import com.expense.service.ExpenseService;
 import com.expense.util.DataExporter;
 import com.expense.util.DataImporter;
@@ -25,6 +26,7 @@ import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -77,88 +79,53 @@ public class MainController {
         this.categorizer = new WekaPredictor();
         this.expensePredictor = new ExpensePredictor();
 
-        // Configure the x-axis with all month names from the start
         List<String> monthNames = Arrays.stream(Month.values())
                 .map(m -> m.getDisplayName(TextStyle.SHORT, Locale.ENGLISH))
                 .collect(Collectors.toList());
         xAxis.setCategories(FXCollections.observableArrayList(monthNames));
 
+        setupTable();
+    }
+
+    public void postLoginInit() {
         try {
-            service.init();
+            service.postLoginInit();
             int itemsProcessed = service.processRecurringTransactions();
             if (itemsProcessed > 0) {
                 showAlert(Alert.AlertType.INFORMATION, "Transactions Auto-Added",
-                        itemsProcessed + " recurring transaction(s) were automatically added to your log.");
+                        itemsProcessed + " recurring transaction(s) were automatically added.");
             }
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Fatal Error", "Could not initialize application: " + e.getMessage());
-            e.printStackTrace();
-            Platform.exit();
+            showAlert(Alert.AlertType.ERROR, "Error", "Could not initialize user session: " + e.getMessage());
         }
 
         dashboardController.setService(service);
         goalsController.setService(service);
-
-        setupTable();
         refreshData();
     }
 
-    // ==========================================================================
-    // --- THIS IS THE DEFINITIVE FIX FOR THE BAR CHART ---
-    // ==========================================================================
-    private void onRefreshBar() {
-        Integer selectedYear = barYearCombo.getValue();
-        if (selectedYear == null) {
-            barChart.getData().clear();
-            return;
-        }
-
+    @FXML
+    private void onLogout() {
         try {
-            int previousYear = selectedYear - 1;
+            Stage currentStage = (Stage) mainTabPane.getScene().getWindow();
+            currentStage.close();
 
-            // 1. Fetch data for both years
-            Map<String, Double> currentYearTotals = service.getMonthlyTotalsForYear(selectedYear);
-            Map<String, Double> previousYearTotals = service.getMonthlyTotalsForYear(previousYear);
+            new AuthService().logout();
 
-            // 2. Create a data series for each year
-            XYChart.Series<String, Number> currentYearSeries = new XYChart.Series<>();
-            currentYearSeries.setName(String.valueOf(selectedYear));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/login.fxml"));
+            VBox loginRoot = loader.load();
+            Scene loginScene = new Scene(loginRoot);
+            loginScene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
 
-            XYChart.Series<String, Number> previousYearSeries = new XYChart.Series<>();
-            previousYearSeries.setName(String.valueOf(previousYear));
+            Stage loginStage = new Stage();
+            loginStage.setTitle("Login - Smart Expense Analyser");
+            loginStage.setScene(loginScene);
+            loginStage.show();
 
-            // 3. Find the overall maximum amount for scaling the Y-axis
-            double maxAmount = 0.0;
-            maxAmount = Math.max(currentYearTotals.values().stream().mapToDouble(d -> d).max().orElse(0.0), maxAmount);
-            maxAmount = Math.max(previousYearTotals.values().stream().mapToDouble(d -> d).max().orElse(0.0), maxAmount);
-            yAxis.setAutoRanging(false);
-            yAxis.setUpperBound(maxAmount == 0 ? 100 : maxAmount * 1.1);
-
-            // 4. Populate both series with data for all 12 months
-            for (Month month : Month.values()) {
-                String shortMonthName = month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
-
-                // Current Year Data
-                String currentYearKey = String.format("%d-%02d", selectedYear, month.getValue());
-                currentYearSeries.getData().add(new XYChart.Data<>(shortMonthName, currentYearTotals.getOrDefault(currentYearKey, 0.0)));
-
-                // Previous Year Data
-                String previousYearKey = String.format("%d-%02d", previousYear, month.getValue());
-                previousYearSeries.getData().add(new XYChart.Data<>(shortMonthName, previousYearTotals.getOrDefault(previousYearKey, 0.0)));
-            }
-
-            // 5. Display the data
-            barChart.setAnimated(false);
-            barChart.getData().setAll(currentYearSeries, previousYearSeries);
-            barChart.setTitle("Monthly Comparison: " + previousYear + " vs " + selectedYear);
-
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Bar Chart: " + e.getMessage());
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
-    // --- All other methods remain correct ---
 
     private void setupTable() {
         table.setEditable(true);
@@ -278,7 +245,10 @@ public class MainController {
             e.printStackTrace();
         }
     }
-    @FXML private void onOpenRecurring() {
+
+    // --- THIS IS THE FIX ---
+    @FXML
+    private void onOpenRecurring() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/recurring_manager.fxml"));
             Stage stage = new Stage();
@@ -295,6 +265,7 @@ public class MainController {
             e.printStackTrace();
         }
     }
+
     @FXML private void onDeleteTransaction() {
         Transaction selected = table.getSelectionModel().getSelectedItem();
         if (selected == null) {
@@ -332,6 +303,37 @@ public class MainController {
             pieChart.setTitle("Expenses for " + month.name() + " " + year);
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Pie Chart: " + e.getMessage());
+        }
+    }
+    private void onRefreshBar() {
+        Integer selectedYear = barYearCombo.getValue();
+        if (selectedYear == null) { barChart.getData().clear(); return; }
+        try {
+            int previousYear = selectedYear - 1;
+            Map<String, Double> currentYearTotals = service.getMonthlyTotalsForYear(selectedYear);
+            Map<String, Double> previousYearTotals = service.getMonthlyTotalsForYear(previousYear);
+            XYChart.Series<String, Number> currentYearSeries = new XYChart.Series<>();
+            currentYearSeries.setName(String.valueOf(selectedYear));
+            XYChart.Series<String, Number> previousYearSeries = new XYChart.Series<>();
+            previousYearSeries.setName(String.valueOf(previousYear));
+            double maxAmount = 0.0;
+            maxAmount = Math.max(currentYearTotals.values().stream().mapToDouble(d -> d).max().orElse(0.0), maxAmount);
+            maxAmount = Math.max(previousYearTotals.values().stream().mapToDouble(d -> d).max().orElse(0.0), maxAmount);
+            yAxis.setAutoRanging(false);
+            yAxis.setUpperBound(maxAmount == 0 ? 100 : maxAmount * 1.1);
+            for (Month month : Month.values()) {
+                String shortMonthName = month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+                String currentYearKey = String.format("%d-%02d", selectedYear, month.getValue());
+                currentYearSeries.getData().add(new XYChart.Data<>(shortMonthName, currentYearTotals.getOrDefault(currentYearKey, 0.0)));
+                String previousYearKey = String.format("%d-%02d", previousYear, month.getValue());
+                previousYearSeries.getData().add(new XYChart.Data<>(shortMonthName, previousYearTotals.getOrDefault(previousYearKey, 0.0)));
+            }
+            barChart.setAnimated(false);
+            barChart.getData().setAll(currentYearSeries, previousYearSeries);
+            barChart.setTitle("Monthly Comparison: " + previousYear + " vs " + selectedYear);
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Bar Chart: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     @FXML private void onExport() {
@@ -376,13 +378,7 @@ public class MainController {
         Task<Void> retrainTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                new WekaTrainer().trainAndSave(
-                        "data/transactions_labeled.csv",
-                        "data/corrections.csv",
-                        "model/classifier.model",
-                        "model/filter.model",
-                        "model/header.instance"
-                );
+                new WekaTrainer().trainAndSave("data/transactions_labeled.csv", "data/corrections.csv", "model/classifier.model", "model/filter.model", "model/header.instance");
                 return null;
             }
         };
@@ -419,9 +415,7 @@ public class MainController {
             protected String call() throws Exception {
                 updateMessage("Fetching training data...");
                 List<TransactionData> trainingData = service.getTransactionDataForRegression();
-                if (trainingData.size() < 10) {
-                    return "Not enough transaction data to train the prediction model (minimum 10 required).";
-                }
+                if (trainingData.size() < 10) return "Not enough transaction data to train the prediction model (minimum 10 required).";
                 updateMessage("Training regression model...");
                 expensePredictor.train(trainingData);
                 updateMessage("Analyzing historical data...");
@@ -441,12 +435,7 @@ public class MainController {
                     double totalCategoryPrediction = 0;
                     for (int day = 1; day <= nextMonthDate.lengthOfMonth(); day++) {
                         LocalDate predictionDate = LocalDate.of(nextMonthDate.getYear(), nextMonthDate.getMonth(), day);
-                        totalCategoryPrediction += expensePredictor.predict(
-                                predictionDate.getDayOfWeek().getValue(),
-                                predictionDate.getDayOfMonth(),
-                                predictionDate.getMonthValue(),
-                                entry.getValue()
-                        );
+                        totalCategoryPrediction += expensePredictor.predict(predictionDate.getDayOfWeek().getValue(), predictionDate.getDayOfMonth(), predictionDate.getMonthValue(), entry.getValue());
                     }
                     if (totalCategoryPrediction > 0) {
                         predictedExpenses.put(entry.getKey(), totalCategoryPrediction);
@@ -455,8 +444,7 @@ public class MainController {
                 }
                 updateMessage("Generating report...");
                 results.append("--- Predicted Spending ---\n");
-                predictedExpenses.entrySet().stream()
-                        .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                predictedExpenses.entrySet().stream().sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                         .forEach(entry -> results.append(String.format("- %s: ₹%.2f\n", entry.getKey(), entry.getValue())));
                 results.append(String.format("\nTotal Predicted Expense: ₹%.2f\n", totalPredicted));
                 if (lastMonthTotal > 0) {

@@ -2,33 +2,30 @@
 
 package com.expense.app;
 
+import com.expense.db.DatabaseUpdater; // Import the new class
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-
-import java.net.URL;
+import javafx.stage.StageStyle;
 
 public class MainApp extends Application {
+
     @Override
     public void start(Stage primaryStage) throws Exception {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/main.fxml"));
-        BorderPane root = loader.load();
-        Scene scene = new Scene(root, 1200, 768); // A slightly larger default size
+        // --- THIS IS THE FIX ---
+        // Run the database schema update BEFORE loading any UI.
+        // This guarantees the database is correct and prevents "no such table" errors.
+        DatabaseUpdater.updateSchema();
+        // --- END OF FIX ---
 
-        // --- THIS IS THE CRITICAL PART ---
-        // We ensure the CSS file is loaded.
-        URL cssUrl = getClass().getResource("/style.css");
-        if (cssUrl != null) {
-            scene.getStylesheets().add(cssUrl.toExternalForm());
-            System.out.println("SUCCESS: Stylesheet loaded successfully.");
-        } else {
-            System.err.println("!!! FATAL ERROR: Cannot find stylesheet 'style.css'. Make sure it's in src/main/resources/");
-        }
-        // --- END OF CRITICAL PART ---
+        // The rest of the startup process remains the same
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/splash.fxml"));
+        VBox root = loader.load();
+        Scene scene = new Scene(root);
 
-        primaryStage.setTitle("Smart Expense Analyzer");
+        primaryStage.initStyle(StageStyle.UNDECORATED);
         primaryStage.setScene(scene);
         primaryStage.show();
     }

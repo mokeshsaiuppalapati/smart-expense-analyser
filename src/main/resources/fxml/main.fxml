@@ -44,6 +44,9 @@
                 <Button fx:id="btnRetrain" onAction="#onRetrainModel" styleClass="top-bar-button" text="Retrain AI">
                     <graphic><FontIcon iconLiteral="mdi2r-robot-outline" styleClass="glyph-icon" /></graphic>
                 </Button>
+                <Button onAction="#onLogout" styleClass="top-bar-button" text="Logout">
+                    <graphic><FontIcon iconLiteral="mdi2l-logout" styleClass="glyph-icon" /></graphic>
+                </Button>
                 <ProgressIndicator fx:id="prog" prefHeight="25.0" prefWidth="25.0" visible="false" />
             </HBox>
         </VBox>

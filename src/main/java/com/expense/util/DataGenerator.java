@@ -9,28 +9,43 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Random;
+import java.util.Scanner;
 
 public class DataGenerator {
 
-    private static final String[] CATEGORIES = {"Food", "Transport", "Groceries", "Bills", "Health", "Entertainment", "Shopping"};
+    private static final String[] CATEGORIES = {"Food", "Transport", "Groceries", "Bills", "Health", "Entertainment", "Shopping", "Personal Care", "Gifts"};
     private static final Random RAND = new Random();
 
     public static void main(String[] args) {
-        try {
-            System.out.println("Generating sample data...");
-            generateData(500); // Generate 500 random transactions
-            System.out.println("Data generation complete.");
+        // --- THIS IS THE NEW INTERACTIVE PART ---
+        try (Scanner scanner = new Scanner(System.in)) {
+            System.out.print("Enter the User ID to generate data for: ");
+            int userId = scanner.nextInt();
+
+            System.out.print("How many random transactions would you like to generate? (e.g., 500): ");
+            int numberOfTransactions = scanner.nextInt();
+
+            System.out.println("Generating " + numberOfTransactions + " sample data for user ID " + userId + "...");
+            generateData(userId, numberOfTransactions);
+            System.out.println("✅ Data generation complete.");
+
         } catch (Exception e) {
-            System.err.println("Failed to generate data.");
+            System.err.println("❌ Failed to generate data. Please make sure you enter a valid number.");
             e.printStackTrace();
         }
     }
 
-    public static void generateData(int numberOfTransactions) throws SQLException {
-        Database.createTables(); // Ensure tables exist
+    /**
+     * Generates random transaction data for a specific user.
+     * @param userId The ID of the user to assign the data to.
+     * @param numberOfTransactions The number of random transactions to create.
+     * @throws SQLException if a database error occurs.
+     */
+    public static void generateData(int userId, int numberOfTransactions) throws SQLException {
+        Database.createTables();
 
-        // FIXED: SQL now correctly references the 'timestamp' column
-        String sql = "INSERT INTO transactions(timestamp, amount, description, category) VALUES(?,?,?,?)";
+        // SQL now includes the user_id column
+        String sql = "INSERT INTO transactions(user_id, timestamp, amount, description, category) VALUES(?,?,?,?,?)";
 
         try (Connection conn = Database.connect();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -41,11 +56,12 @@ public class DataGenerator {
                 double amount = generateRandomAmount(category, date);
                 String description = generateDescription(category);
 
-                // FIXED: Now correctly setting the date as a long (epoch day)
-                ps.setLong(1, date.toEpochDay());
-                ps.setDouble(2, amount);
-                ps.setString(3, description);
-                ps.setString(4, category);
+                // We now set the userId as the first parameter
+                ps.setInt(1, userId);
+                ps.setLong(2, date.toEpochDay());
+                ps.setDouble(3, amount);
+                ps.setString(4, description);
+                ps.setString(5, category);
 
                 ps.addBatch();
             }
@@ -90,6 +106,8 @@ public class DataGenerator {
             case "Health" -> "Pharmacy purchase";
             case "Entertainment" -> "Movie ticket";
             case "Shopping" -> "New clothes";
+            case "Personal Care" -> "Salon visit";
+            case "Gifts" -> "Birthday present";
             default -> "Misc. purchase";
         };
     }

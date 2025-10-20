@@ -12,24 +12,27 @@ import com.expense.service.AuthService;
 import com.expense.service.ExpenseService;
 import com.expense.util.DataExporter;
 import com.expense.util.DataImporter;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.chart.BarChart;
-import javafx.scene.chart.CategoryAxis;
-import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.PieChart;
-import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.LocalDateStringConverter;
 
@@ -39,7 +42,6 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -55,10 +57,9 @@ public class MainController {
     @FXML private TableColumn<Transaction, String> colDesc;
     @FXML private TableColumn<Transaction, String> colCat;
     @FXML private PieChart pieChart;
-    @FXML private BarChart<String, Number> barChart;
-    @FXML private CategoryAxis xAxis;
-    @FXML private NumberAxis yAxis;
     @FXML private ComboBox<Integer> barYearCombo;
+    @FXML private Label barChartTitle;
+    @FXML private HBox barChartContainer;
     @FXML private ComboBox<Integer> pieYearCombo;
     @FXML private ComboBox<Month> pieMonthCombo;
     @FXML private ProgressIndicator prog;
@@ -78,12 +79,6 @@ public class MainController {
         this.service = new ExpenseService();
         this.categorizer = new WekaPredictor();
         this.expensePredictor = new ExpensePredictor();
-
-        List<String> monthNames = Arrays.stream(Month.values())
-                .map(m -> m.getDisplayName(TextStyle.SHORT, Locale.ENGLISH))
-                .collect(Collectors.toList());
-        xAxis.setCategories(FXCollections.observableArrayList(monthNames));
-
         setupTable();
     }
 
@@ -104,24 +99,74 @@ public class MainController {
         refreshData();
     }
 
+    private void onRefreshBar() {
+        Integer selectedYear = barYearCombo.getValue();
+        if (selectedYear == null) {
+            barChartContainer.getChildren().clear();
+            return;
+        }
+
+        barChartContainer.getChildren().clear();
+        barChartTitle.setText("Monthly Totals for " + selectedYear);
+
+        try {
+            Map<String, Double> monthlyTotals = service.getMonthlyTotalsForYear(selectedYear);
+            double maxAmount = monthlyTotals.values().stream().mapToDouble(d -> d).max().orElse(1.0);
+
+            Timeline animation = new Timeline();
+
+            for (Month month : Month.values()) {
+                String yearMonthKey = String.format("%d-%02d", selectedYear, month.getValue());
+                double total = monthlyTotals.getOrDefault(yearMonthKey, 0.0);
+
+                Label valueLabel = new Label(String.format("₹%.0f", total));
+                valueLabel.getStyleClass().add("custom-bar-value-label");
+                valueLabel.setVisible(false);
+
+                Region bar = new Region();
+                bar.getStyleClass().add("custom-bar");
+                bar.setPrefWidth(30);
+                bar.setMinHeight(0);
+
+                Label monthLabel = new Label(month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
+                monthLabel.getStyleClass().add("custom-bar-label");
+
+                VBox barVBox = new VBox(5, valueLabel, bar, monthLabel);
+                barVBox.setAlignment(Pos.BOTTOM_CENTER);
+                barChartContainer.getChildren().add(barVBox);
+
+                barVBox.setOnMouseEntered(e -> valueLabel.setVisible(true));
+                barVBox.setOnMouseExited(e -> valueLabel.setVisible(false));
+
+                double barHeight = (total / maxAmount) * (barChartContainer.getPrefHeight() - 50);
+
+                KeyValue kv = new KeyValue(bar.minHeightProperty(), barHeight);
+                KeyFrame kf = new KeyFrame(Duration.millis(500 + (month.getValue() * 50)), kv);
+                animation.getKeyFrames().add(kf);
+            }
+
+            animation.play();
+
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Bar Chart: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     @FXML
     private void onLogout() {
         try {
             Stage currentStage = (Stage) mainTabPane.getScene().getWindow();
             currentStage.close();
-
             new AuthService().logout();
-
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/login.fxml"));
             VBox loginRoot = loader.load();
             Scene loginScene = new Scene(loginRoot);
             loginScene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
-
             Stage loginStage = new Stage();
             loginStage.setTitle("Login - Smart Expense Analyser");
             loginStage.setScene(loginScene);
             loginStage.show();
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -221,7 +266,7 @@ public class MainController {
             stage.setTitle("Add New Expense");
             stage.setScene(new Scene(loader.load()));
             AddExpenseController controller = loader.getController();
-            List<String> allCategories = service.getAllCategories();
+            List<String> allCategories = service.getAvailableCategoriesForUser();
             controller.initData(service, this, categorizer, allCategories);
             stage.showAndWait();
         } catch (Exception e) {
@@ -245,10 +290,7 @@ public class MainController {
             e.printStackTrace();
         }
     }
-
-    // --- THIS IS THE FIX ---
-    @FXML
-    private void onOpenRecurring() {
+    @FXML private void onOpenRecurring() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/recurring_manager.fxml"));
             Stage stage = new Stage();
@@ -256,7 +298,7 @@ public class MainController {
             stage.setTitle("Subscriptions & Recurring Bills");
             stage.setScene(new Scene(loader.load()));
             RecurringManagerController controller = loader.getController();
-            List<String> allCategories = service.getAllCategories();
+            List<String> allCategories = service.getAvailableCategoriesForUser();
             controller.initData(service, allCategories);
             stage.showAndWait();
             refreshData();
@@ -265,7 +307,6 @@ public class MainController {
             e.printStackTrace();
         }
     }
-
     @FXML private void onDeleteTransaction() {
         Transaction selected = table.getSelectionModel().getSelectedItem();
         if (selected == null) {
@@ -303,37 +344,6 @@ public class MainController {
             pieChart.setTitle("Expenses for " + month.name() + " " + year);
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Pie Chart: " + e.getMessage());
-        }
-    }
-    private void onRefreshBar() {
-        Integer selectedYear = barYearCombo.getValue();
-        if (selectedYear == null) { barChart.getData().clear(); return; }
-        try {
-            int previousYear = selectedYear - 1;
-            Map<String, Double> currentYearTotals = service.getMonthlyTotalsForYear(selectedYear);
-            Map<String, Double> previousYearTotals = service.getMonthlyTotalsForYear(previousYear);
-            XYChart.Series<String, Number> currentYearSeries = new XYChart.Series<>();
-            currentYearSeries.setName(String.valueOf(selectedYear));
-            XYChart.Series<String, Number> previousYearSeries = new XYChart.Series<>();
-            previousYearSeries.setName(String.valueOf(previousYear));
-            double maxAmount = 0.0;
-            maxAmount = Math.max(currentYearTotals.values().stream().mapToDouble(d -> d).max().orElse(0.0), maxAmount);
-            maxAmount = Math.max(previousYearTotals.values().stream().mapToDouble(d -> d).max().orElse(0.0), maxAmount);
-            yAxis.setAutoRanging(false);
-            yAxis.setUpperBound(maxAmount == 0 ? 100 : maxAmount * 1.1);
-            for (Month month : Month.values()) {
-                String shortMonthName = month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
-                String currentYearKey = String.format("%d-%02d", selectedYear, month.getValue());
-                currentYearSeries.getData().add(new XYChart.Data<>(shortMonthName, currentYearTotals.getOrDefault(currentYearKey, 0.0)));
-                String previousYearKey = String.format("%d-%02d", previousYear, month.getValue());
-                previousYearSeries.getData().add(new XYChart.Data<>(shortMonthName, previousYearTotals.getOrDefault(previousYearKey, 0.0)));
-            }
-            barChart.setAnimated(false);
-            barChart.getData().setAll(currentYearSeries, previousYearSeries);
-            barChart.setTitle("Monthly Comparison: " + previousYear + " vs " + selectedYear);
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Bar Chart: " + e.getMessage());
-            e.printStackTrace();
         }
     }
     @FXML private void onExport() {

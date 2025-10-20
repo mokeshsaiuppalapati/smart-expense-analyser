@@ -15,8 +15,6 @@
 .label { -fx-text-fill: -fx-text-primary-color; }
 .h1 { -fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white; }
 .text-field, .combo-box .text-field { -fx-text-fill: -fx-text-primary-color; -fx-prompt-text-fill: -fx-text-secondary-color; }
-.combo-box-base, .date-picker { -fx-background-color: -fx-control-inner-background; -fx-border-color: -fx-secondary-color; -fx-border-width: 1.5; -fx-border-radius: 5; }
-.combo-box-base:hover, .date-picker:hover { -fx-border-color: -fx-accent-color; }
 .button { -fx-background-color: -fx-accent-color; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-border-width: 0; -fx-padding: 8 15 8 15; }
 .button:hover { -fx-background-color: derive(-fx-accent-color, 20%); }
 .top-bar-button { -fx-background-color: transparent; -fx-text-fill: -fx-text-secondary-color; -fx-font-weight: bold; -fx-background-radius: 20; }
@@ -32,7 +30,6 @@
 .table-view .table-cell { -fx-text-fill: -fx-text-primary-color; -fx-border-color: derive(-fx-secondary-color, 30%); -fx-padding: 0.8em; }
 .table-view .table-row-cell:selected { -fx-background-color: -fx-accent-color; }
 .table-view .placeholder .label { -fx-text-fill: -fx-text-secondary-color; }
-
 .tab-pane .tab-header-area .tab-header-background { -fx-background-color: transparent; }
 .tab-pane .tab { -fx-background-color: -fx-primary-color; -fx-padding: 8 15 8 15; }
 .tab-pane .tab:selected { -fx-background-color: -fx-secondary-color; -fx-border-color: -fx-accent-color; -fx-border-width: 3 0 0 0; }
@@ -51,41 +48,40 @@
 .progress-bar .bar { -fx-padding: 4px; }
 .progress-bar .track { -fx-background-color: derive(-fx-secondary-color, 30%); }
 
-
-/* ========================================================================== */
-/* --- DEFINITIVE FIXES FOR ALL UI GLITCHES --- */
-/* ========================================================================== */
-
-/* --- FIX #1: BAR CHART BARS --- */
-.stacked-bar-chart .chart-bar { -fx-bar-fill: -fx-accent-color; }
-
-/* --- FIX #2: TAB TITLE TEXT --- */
-.tab .tab-label { -fx-text-fill: white; }
-
-/* --- FIX #3: PIE CHART LABELS AND LEGEND --- */
-.chart-pie-label { -fx-fill: white; -fx-font-size: 1.1em; }
+/* --- 5. Charts --- */
+.chart-title { -fx-font-weight: bold; -fx-text-fill: white; }
+.chart-plot-background { -fx-background-color: -fx-secondary-color; }
+.axis { -fx-tick-label-fill: -fx-text-secondary-color; -fx-border-color: derive(-fx-secondary-color, 30%); }
 .chart-legend { -fx-background-color: transparent; }
 .chart-legend .label { -fx-text-fill: -fx-text-primary-color; }
-
-/* --- FIX #4: COMBO BOX TEXT --- */
+.chart-pie-label { -fx-fill: white; -fx-font-size: 1.1em; }
 .combo-box > .list-cell { -fx-text-fill: white; -fx-background-color: -fx-control-inner-background; }
 .combo-box-popup .list-view .list-cell { -fx-text-fill: white; -fx-background-color: -fx-secondary-color; }
 .combo-box-popup .list-view .list-cell:hover { -fx-text-fill: white; -fx-background-color: -fx-accent-color; }
-
-/* --- FIX #5: DATE PICKER POPUP --- */
 .date-picker-popup { -fx-background-color: -fx-secondary-color; -fx-border-color: derive(-fx-secondary-color, 50%); }
 .date-picker-popup .month-year-pane { -fx-background-color: -fx-secondary-color; }
 .date-picker-popup .month-year-pane .label { -fx-text-fill: white; }
 .date-picker-popup .spinner .arrow-button { -fx-background-color: -fx-control-inner-background; }
 .date-picker-popup .spinner .arrow-button:hover { -fx-background-color: -fx-accent-color; }
 .date-picker-popup .spinner .arrow-button .arrow { -fx-background-color: -fx-text-primary-color; }
-
-/* THIS IS THE NEW RULE FOR THE WEEKDAY NAMES (S, M, T, etc.) */
-.date-picker-popup .day-name-cell {
-    -fx-text-fill: black;
-    -fx-font-weight: bold;
-}
+.date-picker-popup .day-name-cell { -fx-text-fill: white; -fx-font-weight: bold; }
 .date-picker-popup .day-cell { -fx-text-fill: -fx-text-primary-color; }
 .date-picker-popup .day-cell:hover { -fx-background-color: derive(-fx-secondary-color, 50%); }
-.date-picker-popup .day-cell.selected { -fx-background-color: -fx-accent-color; -fx-text-fill: black; }
+.date-picker-popup .day-cell.selected { -fx-background-color: -fx-accent-color; -fx-text-fill: white; }
 .date-picker-popup .day-cell.today { -fx-border-color: -fx-accent-color; -fx-border-width: 1; }
+
+/* --- NEW STYLES FOR THE CUSTOM BAR CHART --- */
+.custom-bar {
+    -fx-background-color: -fx-accent-color;
+    -fx-background-radius: 3 3 0 0;
+}
+.custom-bar-label {
+    -fx-text-fill: -fx-text-secondary-color;
+}
+.custom-bar-value-label {
+    -fx-font-size: 0.9em;
+    -fx-text-fill: white;
+    -fx-background-color: rgba(0, 0, 0, 0.6);
+    -fx-padding: 3 5 3 5;
+    -fx-background-radius: 3;
+}

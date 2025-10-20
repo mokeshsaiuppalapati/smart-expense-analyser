@@ -26,7 +26,7 @@ public class Database {
 
             String transactionsTableSql = "CREATE TABLE IF NOT EXISTS transactions (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "user_id INTEGER, " + // No "NOT NULL" for backward compatibility
+                    "user_id INTEGER, " +
                     "timestamp INTEGER NOT NULL, " +
                     "amount REAL NOT NULL, " +
                     "description TEXT, " +
@@ -39,6 +39,8 @@ public class Database {
                     "user_id INTEGER, " +
                     "category TEXT NOT NULL, " +
                     "monthly_limit REAL NOT NULL, " +
+                    "last_alert_level TEXT, " + // e.g., "90_2025-10"
+                    "UNIQUE(user_id, category), " +
                     "FOREIGN KEY (user_id) REFERENCES users(id))";
             st.executeUpdate(budgetsTableSql);
 

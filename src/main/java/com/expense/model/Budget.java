@@ -6,31 +6,31 @@ public class Budget {
     private int id;
     private String category;
     private double monthlyLimit;
+    private String lastAlertLevel;
 
     public Budget() {}
 
-    // Constructor for creating new budgets from the UI
-    public Budget(String category, double monthlyLimit) {
-        this.id = 0;
-        this.category = category;
-        this.monthlyLimit = monthlyLimit;
-    }
-
-    // Constructor for loading budgets from the database
-    public Budget(int id, String category, double monthlyLimit) {
+    public Budget(int id, String category, double monthlyLimit, String lastAlertLevel) {
         this.id = id;
         this.category = category;
         this.monthlyLimit = monthlyLimit;
+        this.lastAlertLevel = lastAlertLevel;
     }
 
-    // --- Getters and Setters ---
+    public Budget(String category, double monthlyLimit) {
+        this(0, category, monthlyLimit, null);
+    }
+
+    public Budget(int id, String category, double monthlyLimit) {
+        this(id, category, monthlyLimit, null);
+    }
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
-
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
-
     public double getMonthlyLimit() { return monthlyLimit; }
     public void setMonthlyLimit(double monthlyLimit) { this.monthlyLimit = monthlyLimit; }
+    public String getLastAlertLevel() { return lastAlertLevel; }
+    public void setLastAlertLevel(String lastAlertLevel) { this.lastAlertLevel = lastAlertLevel; }
 }

@@ -18,12 +18,9 @@ import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
+import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 public class ExpenseService {
@@ -31,15 +28,64 @@ public class ExpenseService {
     private Map<String, Double> spendingAveragesCache;
     private static final double ANOMALY_MULTIPLIER = 4.0;
     private static final double MINIMUM_ANOMALY_AMOUNT = 500.0;
+    private final Preferences prefs = Preferences.userNodeForPackage(ExpenseService.class);
+    private static final String BUDGET_ALERTS_DISABLED_KEY = "budgetAlertsGloballyDisabled";
 
-    public void init() throws SQLException {
-        repo.init();
+    private static final List<String> PREDEFINED_CATEGORIES = List.of(
+            "Food", "Groceries", "Transport", "Bills", "Shopping", "Health",
+            "Entertainment", "Personal Care", "Household", "Fees", "Gifts", "Savings"
+    );
+
+    public List<String> getAvailableCategoriesForUser() throws SQLException {
+        Set<String> categorySet = new LinkedHashSet<>(PREDEFINED_CATEGORIES);
+        List<String> userCategories = repo.getAllCategories(AuthService.getCurrentUserId());
+        categorySet.addAll(userCategories);
+        List<String> sortedList = new ArrayList<>(categorySet);
+        Collections.sort(sortedList);
+        return sortedList;
     }
 
-    public void postLoginInit() throws SQLException {
-        refreshSpendingAveragesCache();
+    public static class BudgetAlertInfo {
+        public final Budget budget;
+        public final int level;
+        public BudgetAlertInfo(Budget budget, int level) { this.budget = budget; this.level = level; }
+    }
+    public Optional<BudgetAlertInfo> checkBudgetThresholds(String category, double newAmount) throws SQLException {
+        if (prefs.getBoolean(BUDGET_ALERTS_DISABLED_KEY, false)) return Optional.empty();
+        int userId = AuthService.getCurrentUserId();
+        Budget budget = repo.getBudgetByCategory(userId, category);
+        if (budget == null) return Optional.empty();
+        double currentSpent = getSpentAmountForCategoryThisMonth(category);
+        double projectedSpent = currentSpent + newAmount;
+        double limit = budget.getMonthlyLimit();
+        if (currentSpent > limit) {
+            return Optional.of(new BudgetAlertInfo(budget, 101));
+        }
+        double oldPercent = limit > 0 ? (currentSpent / limit) * 100 : 0;
+        double newPercent = limit > 0 ? (projectedSpent / limit) * 100 : 0;
+        String currentMonthKey = YearMonth.now().toString();
+        int lastAlerted = 0;
+        if (budget.getLastAlertLevel() != null && budget.getLastAlertLevel().endsWith(currentMonthKey)) {
+            lastAlerted = Integer.parseInt(budget.getLastAlertLevel().split("_")[0]);
+        }
+        int[] thresholds = {100, 90, 80, 50};
+        for (int threshold : thresholds) {
+            if (newPercent >= threshold && oldPercent < threshold && lastAlerted < threshold) {
+                return Optional.of(new BudgetAlertInfo(budget, threshold));
+            }
+        }
+        return Optional.empty();
+    }
+    public void markBudgetAsAlerted(Budget budget, int level) throws SQLException {
+        String alertKey = level + "_" + YearMonth.now().toString();
+        repo.updateBudgetAlertLevel(AuthService.getCurrentUserId(), budget.getId(), alertKey);
+    }
+    public void disableBudgetAlertsGlobally() {
+        prefs.putBoolean(BUDGET_ALERTS_DISABLED_KEY, true);
     }
 
+    public void init() throws SQLException { repo.init(); }
+    public void postLoginInit() throws SQLException { refreshSpendingAveragesCache(); }
     public Optional<Persona> generatePersona() throws Exception {
         List<Transaction> transactions = repo.getAll(AuthService.getCurrentUserId());
         if (transactions.size() < 30) return Optional.empty();

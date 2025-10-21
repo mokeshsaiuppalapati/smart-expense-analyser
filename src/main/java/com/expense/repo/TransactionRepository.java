@@ -17,7 +17,6 @@ public class TransactionRepository {
 
     public void init() throws SQLException { Database.createTables(); }
 
-    // --- THIS METHOD WAS MISSING ---
     public void updateBudgetAlertLevel(int userId, int budgetId, String alertLevel) throws SQLException {
         String sql = "UPDATE budgets SET last_alert_level = ? WHERE id = ? AND user_id = ?";
         try (Connection conn = Database.connect();
@@ -29,7 +28,6 @@ public class TransactionRepository {
         }
     }
 
-    // --- ALL OTHER METHODS ARE CORRECT ---
     public User findUserByUsername(String username) throws SQLException {
         String sql = "SELECT * FROM users WHERE username = ?";
         try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -171,7 +169,7 @@ public class TransactionRepository {
     public void updateTransaction(int userId, Transaction t) throws SQLException {
         String sql = "UPDATE transactions SET timestamp=?, amount=?, description=?, category=? WHERE id=? AND user_id = ?";
         try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, t.getDate().toEpochDay()); ps.setDouble(2, t.getAmount()); ps.setString(3, t.getDescription()); ps.setString(4, t.getCategory()); ps.setInt(5, t.getId()); ps.setInt(6, userId);
+            ps.setLong(1, t.getDate().toEpochDay()); ps.setDouble(2, t.getAmount()); ps.setString(3, t.getCategory()); ps.setString(4, t.getDescription()); ps.setInt(5, t.getId()); ps.setInt(6, userId);
             ps.executeUpdate();
         }
     }
@@ -265,11 +263,14 @@ public class TransactionRepository {
         Budget existing = getBudgetByCategory(userId, b.getCategory());
         if (existing != null) {
             b.setId(existing.getId());
+            b.setUserId(userId); // Ensure userId is set on the object
             updateBudget(userId, b);
         } else {
             String sql = "INSERT INTO budgets(user_id, category, monthly_limit) VALUES(?,?,?)";
             try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, userId); ps.setString(2, b.getCategory()); ps.setDouble(3, b.getMonthlyLimit());
+                ps.setInt(1, userId);
+                ps.setString(2, b.getCategory());
+                ps.setDouble(3, b.getMonthlyLimit());
                 ps.executeUpdate();
             }
         }
@@ -277,7 +278,9 @@ public class TransactionRepository {
     public void updateBudget(int userId, Budget b) throws SQLException {
         String sql = "UPDATE budgets SET monthly_limit = ? WHERE id = ? AND user_id = ?";
         try (Connection conn = Database.connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setDouble(1, b.getMonthlyLimit()); ps.setInt(2, b.getId()); ps.setInt(3, userId);
+            ps.setDouble(1, b.getMonthlyLimit());
+            ps.setInt(2, b.getId());
+            ps.setInt(3, userId);
             ps.executeUpdate();
         }
     }
@@ -322,6 +325,7 @@ public class TransactionRepository {
                 while (rs.next()) {
                     list.add(new Budget(
                             rs.getInt("id"),
+                            rs.getInt("user_id"), // Read userId from DB
                             rs.getString("category"),
                             rs.getDouble("monthly_limit"),
                             rs.getString("last_alert_level")
@@ -340,6 +344,7 @@ public class TransactionRepository {
                 if (rs.next()) {
                     return new Budget(
                             rs.getInt("id"),
+                            rs.getInt("user_id"), // Read userId from DB
                             rs.getString("category"),
                             rs.getDouble("monthly_limit"),
                             rs.getString("last_alert_level")

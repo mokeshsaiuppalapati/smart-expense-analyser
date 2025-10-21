@@ -34,13 +34,16 @@ public class Database {
                     "FOREIGN KEY (user_id) REFERENCES users(id))";
             st.executeUpdate(transactionsTableSql);
 
-            // --- THIS TABLE IS FIXED ---
+            // This is the ideal and final definition for the budgets table.
+            // The DatabaseUpdater ensures the existing table is migrated to this schema.
             String budgetsTableSql = "CREATE TABLE IF NOT EXISTS budgets (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     "user_id INTEGER, " +
                     "category TEXT NOT NULL, " +
                     "monthly_limit REAL NOT NULL, " +
-                    "UNIQUE(user_id, category))"; // UNIQUE constraint is essential for ON CONFLICT
+                    "last_alert_level TEXT DEFAULT 'none', " + // New column, handled by updater
+                    "UNIQUE(user_id, category), " + // Correct composite unique constraint
+                    "FOREIGN KEY (user_id) REFERENCES users(id))";
             st.executeUpdate(budgetsTableSql);
 
             String recurringTransactionsTableSql = "CREATE TABLE IF NOT EXISTS recurring_transactions (" +

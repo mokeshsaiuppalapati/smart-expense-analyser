@@ -2,7 +2,7 @@
 
 package com.expense.app;
 
-import com.expense.db.DatabaseUpdater; // Import the new class
+import com.expense.db.DatabaseUpdater;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -14,19 +14,23 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        // --- THIS IS THE FIX ---
-        // Run the database schema update BEFORE loading any UI.
-        // This guarantees the database is correct and prevents "no such table" errors.
+        // Run the database schema update before loading any UI.
         DatabaseUpdater.updateSchema();
-        // --- END OF FIX ---
 
-        // The rest of the startup process remains the same
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/splash.fxml"));
         VBox root = loader.load();
-        Scene scene = new Scene(root);
+
+        // --- THIS IS THE FIX ---
+        // Create the scene with a fixed, larger size (e.g., 800x500).
+        Scene scene = new Scene(root, 800, 500);
+        // --- END OF FIX ---
 
         primaryStage.initStyle(StageStyle.UNDECORATED);
         primaryStage.setScene(scene);
+
+        // This ensures the splash screen appears in the middle of the monitor.
+        primaryStage.centerOnScreen();
+
         primaryStage.show();
     }
 

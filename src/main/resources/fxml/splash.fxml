@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.layout.VBox?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<VBox fx:id="root" alignment="CENTER" spacing="20" style="-fx-background-color: #2c3e50;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.expense.ui.SplashController">
+<VBox fx:id="root" alignment="CENTER" spacing="25" style="-fx-background-color: linear-gradient(to bottom right, #2c3e50, #1a252f);" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.expense.ui.SplashController">
     <children>
-        <FontIcon iconLiteral="mdi2c-chart-line" iconSize="64" styleClass="glyph-icon" style="-fx-fill: #3498db;" />
-        <Label style="-fx-font-size: 24px; -fx-text-fill: white;" text="Smart Expense Analyser" />
-        <ProgressIndicator />
-
-        <Label fx:id="statusLabel" style="-fx-text-fill: #bdc3c7;" text="Loading..." />
-
+        <FontIcon iconLiteral="mdi2c-chart-line" iconSize="96" style="-fx-fill: #3498db;" />
+        <Label style="-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: white;" text="Smart Expense Analyser" />
+        <ProgressIndicator prefHeight="40.0" prefWidth="40.0" />
+        <Label fx:id="statusLabel" style="-fx-font-size: 14px; -fx-text-fill: #bdc3c7;" text="Loading..." />
     </children>
+    <padding>
+        <Insets bottom="50.0" left="50.0" right="50.0" top="50.0" />
+    </padding>
 </VBox>

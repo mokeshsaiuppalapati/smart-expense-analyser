@@ -27,9 +27,16 @@ public class GoalsController {
     @FXML private DatePicker targetDateField;
 
     private ExpenseService service;
+    private MainController parentController; // Reference to the main controller
 
-    public void setService(ExpenseService service) {
+    /**
+     * Initializes the controller with data from the main application.
+     * @param service The main expense service.
+     * @param parentController A reference to the MainController to trigger refreshes.
+     */
+    public void initData(ExpenseService service, MainController parentController) {
         this.service = service;
+        this.parentController = parentController;
     }
 
     public void refreshGoals() {
@@ -39,8 +46,7 @@ public class GoalsController {
         try {
             List<SavingsGoal> goals = service.getAllSavingsGoals();
             if (goals.isEmpty()) {
-                Label placeholder = new Label("You haven't set any savings goals yet. Create one below!");
-                goalsContainer.getChildren().add(placeholder);
+                goalsContainer.getChildren().add(new Label("You haven't set any savings goals yet. Create one below!"));
             } else {
                 for (SavingsGoal goal : goals) {
                     goalsContainer.getChildren().add(createGoalNode(goal));
@@ -52,13 +58,40 @@ public class GoalsController {
         }
     }
 
+    @FXML
+    private void onAddGoal() {
+        String name = goalNameField.getText().trim();
+        String amountStr = targetAmountField.getText().trim();
+        LocalDate targetDate = targetDateField.getValue();
+
+        if (name.isEmpty() || amountStr.isEmpty()) {
+            showAlert(Alert.AlertType.ERROR, "Validation Error", "Goal Name and Target Amount are required.");
+            return;
+        }
+
+        try {
+            double targetAmount = Double.parseDouble(amountStr);
+            if (targetAmount <= 0) {
+                showAlert(Alert.AlertType.ERROR, "Validation Error", "Target Amount must be a positive number.");
+                return;
+            }
+
+            SavingsGoal newGoal = new SavingsGoal(name, targetAmount, targetDate);
+            service.addSavingsGoal(newGoal);
+            refreshGoals();
+            clearForm();
+
+        } catch (NumberFormatException e) {
+            showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter a valid number for the Target Amount.");
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Save Failed", "Could not save the new goal: " + e.getMessage());
+        }
+    }
+
     private VBox createGoalNode(SavingsGoal goal) {
         VBox container = new VBox(10);
-        // --- THIS IS THE FIX ---
-        // The hardcoded style is removed and replaced with a style class.
         container.getStyleClass().add("goal-widget");
 
-        // Goal Name and Delete Button
         HBox topRow = new HBox();
         Label nameLabel = new Label(goal.getGoalName());
         nameLabel.setFont(Font.font("System", FontWeight.BOLD, 16));
@@ -68,12 +101,10 @@ public class GoalsController {
         HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
         topRow.getChildren().addAll(nameLabel, spacer, deleteButton);
 
-        // Progress Bar
         double progress = goal.getTargetAmount() > 0 ? goal.getCurrentAmount() / goal.getTargetAmount() : 0;
         ProgressBar progressBar = new ProgressBar(progress);
         progressBar.setMaxWidth(Double.MAX_VALUE);
 
-        // Progress Text
         HBox progressTextRow = new HBox();
         Label progressLabel = new Label(String.format("₹%.2f / ₹%.2f (%.0f%%)", goal.getCurrentAmount(), goal.getTargetAmount(), progress * 100));
         Label remainingLabel = new Label(String.format("₹%.2f left to save", Math.max(0, goal.getTargetAmount() - goal.getCurrentAmount())));
@@ -82,7 +113,6 @@ public class GoalsController {
         HBox.setHgrow(textSpacer, javafx.scene.layout.Priority.ALWAYS);
         progressTextRow.getChildren().addAll(progressLabel, textSpacer, remainingLabel);
 
-        // Action Row (Add Funds)
         HBox actionRow = new HBox(10);
         actionRow.setAlignment(Pos.CENTER_LEFT);
         TextField addAmountField = new TextField();
@@ -90,7 +120,6 @@ public class GoalsController {
         Button addButton = new Button("Add Funds");
         addButton.setOnAction(e -> handleAddFunds(goal, addAmountField.getText()));
 
-        // Smart Suggestion
         Label suggestionLabel = new Label();
         if (goal.getTargetDate() != null && goal.getTargetDate().isAfter(LocalDate.now())) {
             long monthsRemaining = ChronoUnit.MONTHS.between(LocalDate.now(), goal.getTargetDate());
@@ -110,32 +139,6 @@ public class GoalsController {
         return container;
     }
 
-    // --- All other methods are unchanged ---
-
-    @FXML private void onAddGoal() {
-        String name = goalNameField.getText().trim();
-        String amountStr = targetAmountField.getText().trim();
-        LocalDate targetDate = targetDateField.getValue();
-        if (name.isEmpty() || amountStr.isEmpty()) {
-            showAlert(Alert.AlertType.ERROR, "Validation Error", "Goal Name and Target Amount are required.");
-            return;
-        }
-        try {
-            double targetAmount = Double.parseDouble(amountStr);
-            if (targetAmount <= 0) {
-                showAlert(Alert.AlertType.ERROR, "Validation Error", "Target Amount must be a positive number.");
-                return;
-            }
-            SavingsGoal newGoal = new SavingsGoal(name, targetAmount, targetDate);
-            service.addSavingsGoal(newGoal);
-            refreshGoals();
-            clearForm();
-        } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter a valid number for the Target Amount.");
-        } catch (SQLException e) {
-            showAlert(Alert.AlertType.ERROR, "Save Failed", "Could not save the new goal: " + e.getMessage());
-        }
-    }
     private void handleAddFunds(SavingsGoal goal, String amountStr) {
         if (amountStr.trim().isEmpty()) {
             showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter an amount to add.");
@@ -148,13 +151,18 @@ public class GoalsController {
                 return;
             }
             service.addContributionToGoal(goal.getId(), amountToAdd);
-            refreshGoals();
+
+            // --- THIS IS THE FIX ---
+            // Tell the main controller to refresh everything.
+            parentController.refreshData();
+
         } catch (NumberFormatException e) {
             showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter a valid number.");
         } catch (SQLException e) {
             showAlert(Alert.AlertType.ERROR, "Update Failed", "Could not add funds to goal: " + e.getMessage());
         }
     }
+
     private void handleDeleteGoal(SavingsGoal goal) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Confirm Deletion");
@@ -170,11 +178,13 @@ public class GoalsController {
             }
         }
     }
+
     private void clearForm() {
         goalNameField.clear();
         targetAmountField.clear();
         targetDateField.setValue(null);
     }
+
     private void showAlert(Alert.AlertType type, String title, String msg) {
         Alert alert = new Alert(type);
         alert.setTitle(title);

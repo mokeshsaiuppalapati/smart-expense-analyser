@@ -94,51 +94,45 @@ public class MainController {
             showAlert(Alert.AlertType.ERROR, "Error", "Could not initialize user session: " + e.getMessage());
         }
         dashboardController.setService(service);
-        goalsController.setService(service);
+        goalsController.initData(service, this);
         refreshData();
     }
 
-    private void onRefreshBar() {
-        Integer selectedYear = barYearCombo.getValue();
-        if (selectedYear == null) {
-            barChartContainer.getChildren().clear();
-            return;
-        }
-        barChartContainer.getChildren().clear();
-        barChartTitle.setText("Monthly Totals for " + selectedYear);
+    // --- THIS METHOD IS UPGRADED ---
+    private void onRefreshPie() {
+        Integer year = pieYearCombo.getValue();
+        Month month = pieMonthCombo.getValue();
+        if (year == null || month == null) return;
+
         try {
-            Map<String, Double> monthlyTotals = service.getMonthlyTotalsForYear(selectedYear);
-            double maxAmount = monthlyTotals.values().stream().mapToDouble(d -> d).max().orElse(1.0);
-            Timeline animation = new Timeline();
-            for (Month month : Month.values()) {
-                String yearMonthKey = String.format("%d-%02d", selectedYear, month.getValue());
-                double total = monthlyTotals.getOrDefault(yearMonthKey, 0.0);
-                Label valueLabel = new Label(String.format("₹%.0f", total));
-                valueLabel.getStyleClass().add("custom-bar-value-label");
-                valueLabel.setVisible(false);
-                Region bar = new Region();
-                bar.getStyleClass().add("custom-bar");
-                bar.setPrefWidth(30);
-                bar.setMinHeight(0);
-                Label monthLabel = new Label(month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
-                monthLabel.getStyleClass().add("custom-bar-label");
-                VBox barVBox = new VBox(5, valueLabel, bar, monthLabel);
-                barVBox.setAlignment(Pos.BOTTOM_CENTER);
-                HBox.setHgrow(barVBox, javafx.scene.layout.Priority.ALWAYS);
-                barChartContainer.getChildren().add(barVBox);
-                barVBox.setOnMouseEntered(e -> valueLabel.setVisible(true));
-                barVBox.setOnMouseExited(e -> valueLabel.setVisible(false));
-                double barHeight = (total / maxAmount) * (barChartContainer.getPrefHeight() - 50);
-                KeyValue kv = new KeyValue(bar.minHeightProperty(), barHeight);
-                KeyFrame kf = new KeyFrame(Duration.millis(500 + (month.getValue() * 50)), kv);
-                animation.getKeyFrames().add(kf);
+            Map<String, Double> categoryTotals = service.getCategoryTotalsForMonth(YearMonth.of(year, month));
+            ObservableList<PieChart.Data> pieChartData = categoryTotals.entrySet().stream()
+                    .map(entry -> new PieChart.Data(entry.getKey() + String.format(" (₹%.2f)", entry.getValue()), entry.getValue()))
+                    .collect(Collectors.toCollection(FXCollections::observableArrayList));
+
+            if(pieChartData.isEmpty()) {
+                pieChartData.add(new PieChart.Data("No Data for this month", 1));
             }
-            animation.play();
+
+            // This is the definitive fix:
+            // 1. Disable animations to prevent glitches during the update.
+            pieChart.setAnimated(false);
+            // 2. Forcefully clear the old data.
+            pieChart.getData().clear();
+            // 3. Set the new, correct data.
+            pieChart.setData(pieChartData);
+
+            pieChart.setTitle("Expenses for " + month.name() + " " + year);
+
+            // 4. Re-enable animations on the next UI pulse, after the chart has stabilized.
+            Platform.runLater(() -> pieChart.setAnimated(true));
+
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Bar Chart: " + e.getMessage());
-            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Pie Chart: " + e.getMessage());
         }
     }
+
+    // --- All other methods are unchanged ---
 
     @FXML private void onLogout() {
         try {
@@ -313,22 +307,45 @@ public class MainController {
     }
     @FXML private void onPieChartFilterChanged() { onRefreshPie(); }
     @FXML private void onBarYearSelected() { onRefreshBar(); }
-    private void onRefreshPie() {
-        Integer year = pieYearCombo.getValue();
-        Month month = pieMonthCombo.getValue();
-        if (year == null || month == null) return;
+    private void onRefreshBar() {
+        Integer selectedYear = barYearCombo.getValue();
+        if (selectedYear == null) {
+            barChartContainer.getChildren().clear();
+            return;
+        }
+        barChartContainer.getChildren().clear();
+        barChartTitle.setText("Monthly Totals for " + selectedYear);
         try {
-            Map<String, Double> categoryTotals = service.getCategoryTotalsForMonth(YearMonth.of(year, month));
-            ObservableList<PieChart.Data> pieChartData = categoryTotals.entrySet().stream()
-                    .map(entry -> new PieChart.Data(entry.getKey() + String.format(" (₹%.2f)", entry.getValue()), entry.getValue()))
-                    .collect(Collectors.toCollection(FXCollections::observableArrayList));
-            if(pieChartData.isEmpty()) {
-                pieChartData.add(new PieChart.Data("No Data for this month", 1));
+            Map<String, Double> monthlyTotals = service.getMonthlyTotalsForYear(selectedYear);
+            double maxAmount = monthlyTotals.values().stream().mapToDouble(d -> d).max().orElse(1.0);
+            Timeline animation = new Timeline();
+            for (Month month : Month.values()) {
+                String yearMonthKey = String.format("%d-%02d", selectedYear, month.getValue());
+                double total = monthlyTotals.getOrDefault(yearMonthKey, 0.0);
+                Label valueLabel = new Label(String.format("₹%.0f", total));
+                valueLabel.getStyleClass().add("custom-bar-value-label");
+                valueLabel.setVisible(false);
+                Region bar = new Region();
+                bar.getStyleClass().add("custom-bar");
+                bar.setPrefWidth(30);
+                bar.setMinHeight(0);
+                Label monthLabel = new Label(month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
+                monthLabel.getStyleClass().add("custom-bar-label");
+                VBox barVBox = new VBox(5, valueLabel, bar, monthLabel);
+                barVBox.setAlignment(Pos.BOTTOM_CENTER);
+                HBox.setHgrow(barVBox, javafx.scene.layout.Priority.ALWAYS);
+                barChartContainer.getChildren().add(barVBox);
+                barVBox.setOnMouseEntered(e -> valueLabel.setVisible(true));
+                barVBox.setOnMouseExited(e -> valueLabel.setVisible(false));
+                double barHeight = (total / maxAmount) * (barChartContainer.getPrefHeight() - 50);
+                KeyValue kv = new KeyValue(bar.minHeightProperty(), barHeight);
+                KeyFrame kf = new KeyFrame(Duration.millis(500 + (month.getValue() * 50)), kv);
+                animation.getKeyFrames().add(kf);
             }
-            pieChart.setData(pieChartData);
-            pieChart.setTitle("Expenses for " + month.name() + " " + year);
+            animation.play();
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Pie Chart: " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, "Chart Error", "Could not load data for Bar Chart: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     @FXML private void onExport() {
